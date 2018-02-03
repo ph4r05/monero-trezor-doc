@@ -1,0 +1,58 @@
+\documentclass[]{article}
+\usepackage{cite}
+\usepackage{url}
+
+% TODO packages
+% https://tex.stackexchange.com/questions/9796/how-to-add-todo-notes
+\usepackage{xargs}                      % Use more than one optional parameter in a new commands
+\usepackage[pdftex,dvipsnames]{xcolor}  % Coloured text etc.
+\usepackage[colorinlistoftodos,prependcaption,textsize=tiny]{todonotes}
+\newcommandx{\unsure}[2][1=]{\todo[linecolor=red,backgroundcolor=red!25,bordercolor=red,#1]{#2}}
+\newcommandx{\change}[2][1=]{\todo[linecolor=blue,backgroundcolor=blue!25,bordercolor=blue,#1]{#2}}
+\newcommandx{\info}[2][1=]{\todo[linecolor=OliveGreen,backgroundcolor=OliveGreen!25,bordercolor=OliveGreen,#1]{#2}}
+\newcommandx{\improvement}[2][1=]{\todo[linecolor=Plum,backgroundcolor=Plum!25,bordercolor=Plum,#1]{#2}}
+\newcommandx{\thiswillnotshow}[2][1=]{\todo[disable,#1]{#2}}
+
+%opening
+\title{Monero + Trezor}
+\author{Du\v{s}an Klinec}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Design of the Monero integration to the Trezor environment and reuired changes in the Monero codebase.
+\end{abstract}
+
+\section{Introduction}
+
+\subsection{Notation}
+
+Basic system:
+
+\begin{itemize}
+	\item $G$ is a base point of the curve ed25519 $E$, of order $l$
+	\item $H_p : \{0,1\}^* \rightarrow E$, hash function to curve point
+	\item $H_s : \{0,1\}^* \rightarrow [1, l-1]$, hash function to the scalar
+	\item $H = H_p(G)$, a point on the curve $E$ where $H=hG$, $h$ is unknown
+	\item $(a, A)$, $(b, B)$ account view-key / spend-key pair
+\end{itemize}
+\\
+
+Transactions:
+
+\begin{itemize}
+	\item $(r, R)$ transaction key 
+	\item $(r, R)$ transaction key pair
+\end{itemize}
+
+
+%\improvement[inline]{Add more}
+
+% References
+\bibliography{monero}{}
+\bibliographystyle{plain}
+
+\end{document}
+
