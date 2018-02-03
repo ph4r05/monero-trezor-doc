@@ -129,7 +129,7 @@ Most of the time the Trezor will just return an empty list $[]$ as there is no n
 
 If the list is not empty then the detailed scanning is performed for each transaction
 
-\paragraph{Detailed scanning:} In this phase the host wallet sends transaction previously identified as belonging to our account for processing to the Trezor. The whole transaction output is sent to the Trezor so it can extract the amount from the transaction.
+\paragraph{Detailed scanning:} In this phase the host wallet sends transaction previously identified as belonging to our account for processing to the Trezor. The whole transaction output is sent to the Trezor so it can extract the amount and the mask from the transaction.
 
 \paragraph{Summary:}
 The similar mode of operation is also proposed by the Ledger Monero Wallet \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, lack the batching thus we conclude this is mode is also a viable alternative for more privacy-sensitive users.
@@ -222,9 +222,35 @@ The sensitive sub-results are returned sealed to the hardware wallet, encrypted 
 
 \noindent 
 
+\subsection{Signing protocol}
+
+\begin{enumerate}
+	\item Transaction state (counter, randomness, per tsx encryption key)
+	\item Messages for the communication (tsx inputs)
+	\item Messages for range proof offloading.
+	\item Final transaction send.
+\end{enumerate}
+\improvement[inline]{Describe}
+
 \section{Trezor.io}
 
 The more complex integration scenario description follows.
+\begin{enumerate}
+	\item Full-node local vs. remote node (trusted).
+	\item Monero JS wallet - quite a lot of work. Simple receive + sending. Minimalistic for start.
+	\item Monero simplewallet RPC server - would have to be locally running.
+\end{enumerate}
+
+\section{Implementation}
+
+\begin{enumerate}
+	\item Tresor basic Monero related crypto, serialization.
+	\item Trezor HW device in Wallet2
+	\item Extending tsx generation, move the majority to the Trezor.
+\end{enumerate}
+
+
+
 
 %\improvement[inline]{Add more}
 
