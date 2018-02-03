@@ -88,7 +88,7 @@ Wallet computes:
 B^\prime = P - H_s(aR)G
 \end{equation}
 
-If $B^\prime$ is equal to user $B$ or it's sub-addresses then the transaction is destined for us. Otherwise not and can be ignored by the wallet.
+If $B^\prime$ is equal to the user's $B$ or one of it's sub-addresses then the transaction is destined for us. Otherwise not and can be ignored by the wallet.
 
 Complexity: 2 point multiplication, hashing, point subtraction.
 
@@ -138,7 +138,7 @@ The similar mode of operation is also proposed by the Ledger Monero Wallet \cite
 \begin{itemize}
 	\item The view-key $a$ never leaves the device.
 	\item $a$ cannot be exfiltrated from the compromised host
-	\item Same level of security as a competitor.
+	\item The same security-level as a competitor.
 \end{itemize}
 
 \noindent Cons:
