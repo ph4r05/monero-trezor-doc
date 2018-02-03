@@ -15,7 +15,7 @@
 \newcommandx{\thiswillnotshow}[2][1=]{\todo[disable,#1]{#2}}
 
 %opening
-\title{Monero wallet integration to Trezor}
+\title{Monero wallet Trezor integration}
 \author{Du\v{s}an Klinec}
 
 \begin{document}
@@ -23,12 +23,13 @@
 \maketitle
 
 \begin{abstract}
-Design of the Monero integration to the Trezor environment and reuired changes in the Monero codebase.
+Design of the Monero integration to the Trezor environment and required in Monero codebase changes.
 \end{abstract}
 
 \section{Introduction}
+Here follows the basic description of the Monero system, environment and operations that need to be solved in order to integrate Monero wallet to the Trezor.
 
-\subsection{Notation}
+\subsection{Definitions}
 
 \paragraph{Basic system}
 
@@ -144,7 +145,7 @@ The similar mode of operation is also proposed by the Ledger Monero Wallet \cite
 \noindent Cons:
 \begin{itemize}
 	\item Slower wallet synchronization.
-	\item Walet restore could be unfeasible (or take days to complete). Benchmark is needed for this.
+	\item Walet restore could be unfeasible as the whole blockchain has to be scanned (or take days to complete). Benchmark is needed for this.
 	\item More code changes in the existing software wallets to implement the batching. Without batching it could be implemented with minimal changes (forwarding $aR$ operation to the device).
 	\item Inputs and the amounts still visible on the host.
 \end{itemize}
@@ -162,9 +163,9 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 \begin{enumerate}
 	\item Generate a tsx key-pair $(r, R)$
 	\item Process a stealth payment ID
-	\item Find the non-spend outputs $T_{in}$ covering the $xmr$ + fee.
+	\item Find random non-spend outputs $T_{in}$ covering the $xmr$ + fee.
 	\item Find fake outputs\footnote{get\_outs()} of the given value as $T_{in}$.
-	\item Load the transaction information $(P_i, C_i)$, public key and the value commitment from the RPC for the real and fake outputs going to spend.
+	\item Load the transaction information $(P_i, C_i)$, public key and the value commitment, from the full-node RPC server for the real and fake outputs going to spend.
 	\item For each input transaction $T_{in}$:
 	\begin{enumerate}
 		\item Compute a derivation $\mathcal{D}_{in} = aR_{in}$
@@ -187,7 +188,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 \begin{enumerate}
 	\item The transaction key pair $(r,R)$ should be generated on the Trezor to make sure the challenge is random (attacks by crafting $r$ on the host to leak the information). 
 	
-	\item The input processing requires private keys - has to be done in Trezor. Trezor could display sum of all inputs.
+	\item The input processing requires private keys - has to be done in Trezor. Trezor could display sum of all inputs. The transaction can be spent with the $x_{in}$, must not be leaked to the host.
 	
 	\item The change address has to be generated in the Trezor to avoid crafting change address by the compromised host (sending huge change to attacker). Change address cannot be confirmed easilly - is random.
 	
