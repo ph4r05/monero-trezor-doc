@@ -125,14 +125,14 @@ During the wallet refresh the wallet loads missing blocks from the full-node RPC
 	\item Trezor processes each $(R_i, P_i)$. If there is a match, the index $i \rightarrow res$ is added to the result array.
 	\item Trezor returns $res$ 
 \end{enumerate}
-Most of the time the Trezor will just return empty list $[]$ as there is no new incoming transaction destined to the account. 
+Most of the time the Trezor will just return an empty list $[]$ as there is no new incoming transaction destined to the account. 
 
 If the list is not empty then the detailed scanning is performed for each transaction
 
 \paragraph{Detailed scanning:} In this phase the host wallet sends transaction previosly identified as belonging to our accont for processing to the Trezor. The whole transaction output is sent to the Trezor so it can extract the the amount from the transaction.
 
 \paragraph{Summary:}
-The similar mode of operation is also proposed by the Ledger Monero Wallet\todo{cite}, which is slower in terms of computations and bandwidth. Moreover lack the batching thus we conclude this is mode is also viable alternative for more privacy sensitive users.
+The similar mode of operation is also proposed by the Ledger Monero Wallet \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover lack the batching thus we conclude this is mode is also viable alternative for more privacy sensitive users.
 
 \noindent Prons:
 \begin{itemize}
@@ -155,9 +155,77 @@ all transaction inputs on the hosts, to protect the balance value. The balance w
 The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction (sending Moneros). The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. 
 
  
+\section{Sending a transaction}
+Assume we are going to send $xmr$ Moneros to the address $(A_d, B_d)$
+Overall, the sending process goes like this (description inspired by Ledger proposal \cite{ledger_doc}):
 
+\begin{enumerate}
+	\item Generate a tsx key-pair $(r, R)$
+	\item Process a stealth payment ID
+	\item Find the non-spend outputs $T_{in}$ covering the $xmr$ + fee.
+	\item Find fake outputs\footnote{get\_outs()} of the given value as $T_{in}$.
+	\item Load the transaction information $(P_i, C_i)$, public key and the value commitment from the RPC for the real and fake outputs going to spend.
+	\item For each input transaction $T_{in}$:
+	\begin{enumerate}
+		\item Compute a derivation $\mathcal{D}_{in} = aR_{in}$
+		\item Compute an ephemeral tsx spend key $(x_{in}, P_{in})$, \\where $x_{in} = H_s(aR_{in}) + b$
+		\item Compute a key image $I_{in} = x_{in}H_p(P_{in})$
+	\end{enumerate}
+	\item Build the set of output transactions $T_{out}$
+	\item If input $>$ output + fee, create a change transaction $T_{chx} \in T_{out}$. 
+	\begin{enumerate}
+		\item Compute the range proof. Borromean or Bulletproof \cite{monero_1098, Bnz2017BulletproofsSP}.
+		\item Mask output amount and the mask in \verb|ecdhInfo| with the secret $H_s(aR_{in})$ denoted the amount key.
+		\item Compute the output commitments:\\ 
+		$C = a_iG + xmrH$, where $a_i$ is a mask.
+		\item Compute Ring-CT MG for each $T_{in}$ (real + fake inputs)
+	\end{enumerate}
+	\item Submit the transaction
+\end{enumerate}
 
+\paragraph{Observations:}
+\begin{enumerate}
+	\item The transaction key pair $(r,R)$ should be generated on the Trezor to make sure the challenge is random (attacks by crafting $r$ on the host to leak the information). 
+	
+	\item The input processing requires private keys - has to be done in Trezor. Trezor could display sum of all inputs.
+	
+	\item The change address has to be generated in the Trezor to avoid crafting change address by the compromised host (sending huge change to attacker). Change address cannot be confirmed easilly - is random.
+	
+	\item Each Output + monero amount has to be manually confirmed on the Trezor to finish transaction processing.
+	
+	\item The range proof does not work with any secrets so it can be offloaded to the host. Rangeproofs are quite expensive operations and take up to 80\% of the whole transaction space\footnote{Bulletproof is simpler}. Implementation in the software wallet is significantly simpler and faster.
+	
+	\item Output commitments do not require secret keys but the computation is rather simple so can be performed in the Trezor.
+	
+	\item The final Ring signatures on inputs will be performed in the Trezor.
+\end{enumerate}
 
+\paragraph{Ledger comparison.} The Ledge proposal \cite{ledger_doc} goes further with the protocol modification by employing a custom sub-division protocol. Due to hardware nature of the Ledger (about 1k RAM) it is not feasible to compute the transaction in the Ledger so another partial approach had to be chosen.
+
+The majority of  transaction building process is performed in the software wallet while only the low-level crypto operations with the secret keys are performed on the Ledger.  
+
+The sensitive sub-results are returned sealed to the hardware wallet, encrypted by simple AES/ECB encryption with transaction specific encryption key, so the sensitive values cannot be used beyond the transaction scope. Ledger has to unseal the inputs, perform the operation and reseal the outputs before returning the result to the wallet. Moreover, to protect the protocol integrity the inputs are hashed. 
+
+\;
+\noindent Prons:
+\begin{itemize}
+	\item Rather simple implementation. The software wallet performs the heavylifting while some of the 
+	low-level crypto calls are routed to the Ledger. The sealing is somehow format preserving encryption so no data structure augmentation is needed. Code modifications are smaller.
+	\item Device holds the minimal transaction state.
+	\item Abstract device implementation, proposed protocol. We could alleviate an existing PR\cite{ledger_pr} in the Monero wallet.
+\end{itemize}
+
+\noindent Cons:
+\begin{itemize}
+	\item Throughful security analysis is missing. 
+	\item The partial protocol can be vunerable e.g., to change address attacks.
+\end{itemize}
+
+\noindent 
+
+\section{Trezor.io}
+
+The more complex integration scenario description follows.
 
 %\improvement[inline]{Add more}
 
