@@ -56,9 +56,20 @@ Here follows the basic description of the Monero system, environment, and operat
 
 \subsection{Environment}
 
-The basic setup is a Trezor wallet with the account keys and connected host with the Monero software wallet.
+The basic setup is a Trezor hardware wallet with the account keys and a connected host.
 
-We start with the most straightforward setup, \verb|monero-wallet-cli|. Software wallet is connected to a Monero full-node (local or trusted remote).
+We start with the most straightforward setup.
+\begin{itemize}
+	\item The host is running a Monero software wallet \verb|monero-wallet-cli|
+	
+	\item  The software wallet is connected to a Monero full-node (local or trusted remote).
+	
+	\item The basic wallet operations are performed via \verb|monero-wallet-cli| which is configured to work with the Trezor device.
+	
+	\item Some of the operations are performed in the Trezor. 
+\end{itemize}
+
+Later, also the monero-gui wallet is extended to support the Trezor.
 
 \paragraph{Account secrets.}
 Account key-pairs are BIP-44 generated from the seed. Spend-key never leaves the device.
@@ -66,8 +77,8 @@ Account key-pairs are BIP-44 generated from the seed. Spend-key never leaves the
 There are two variants w.r.t. view-key $a$:
 
 \begin{enumerate}
-	\item private scanning: view-key never leaves the device. Wallet synchronization is performed via Trezor. 
-	\item Performance scanning: view-key is exported to the host-based wallet to do blockchain transaction scanning for the wallet.
+	\item Private BC scanning: view-key never leaves the device. Wallet synchronization is performed via Trezor. 
+	\item Performance BC scanning: view-key is exported to the host-based wallet to do blockchain transaction scanning for the wallet.
 \end{enumerate}
 
 All other wallet related data, e.g., outputs with received moneros are
@@ -228,25 +239,54 @@ The sensitive sub-results are returned sealed to the hardware wallet, encrypted 
 	\item Transaction state (counter, randomness, per tsx encryption key)
 	\item Messages for the communication (tsx inputs)
 	\item Messages for range proof offloading.
-	\item Final transaction send.
+	\item Final transaction send.	
 \end{enumerate}
-\improvement[inline]{Describe}
+
+\paragraph{Protocol description}
+\begin{enumerate}
+	\item InitTransaction$( [(T_{out,i}, \text{amount}_i, \text{payment\_id}_i), \dots])$. Send initial transaction info to the Trezor.
+	
+	\item T: Reset transaction state, store new tsx data.
+	
+	\item T: Generate $(r, R)$
+	
+	\item T: Generate transaction random challenge $sec$, increase tsx counter. Send $(H(sec), tsx_i)$ to the host. \todo{Maybe needed later for tsx identification?}
+	
+	\item Set Inputs + fake outputs.
+	
+	\item Set Range proof for $T_{out}$.
+	
+	\item Get signed transaction ready for broadcast.
+	
+
+\end{enumerate}
+\improvement[inline]{Finish decription}
 
 \section{Trezor.io}
 
 The more complex integration scenario description follows.
 \begin{enumerate}
-	\item Full-node local vs. remote node (trusted).
-	\item Monero JS wallet - quite a lot of work. Simple receive + sending. Minimalistic for start.
-	\item Monero simplewallet RPC server - would have to be locally running.
+	\item Chrome plugin - communication channel to the Trezor device. 
+	JS interface to the Trezor. Minimal changes, add custom messages, maybe.
+	Protobuf or JSON interface.
+	
+	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). User can run his own local node. The node is set in the trezor.io menu. By default there can be implicit node owned by the SatoshiLabs / Monero open nodes.
+	
+	\item Basic Monero JS wallet (quite a lot of work). Simple receive + sending. Minimalistic for start.
+	
+	\item Trezor.io wallet. Stores transfers, does transaction scanning, wallet refresh, range proof, bulletproof. 
+	 
+	\item Need to implement monero crypto in JS. Basic curve ed25519 operations, SHA-3.
+	 
 \end{enumerate}
 
-\section{Implementation}
+\section{Implementation - simple case}
 
 \begin{enumerate}
 	\item Tresor basic Monero related crypto, serialization.
 	\item Trezor HW device in Wallet2
 	\item Extending tsx generation, move the majority to the Trezor.
+	
 \end{enumerate}
 
 
