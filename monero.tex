@@ -1,6 +1,7 @@
 \documentclass[]{article}
 \usepackage{cite}
 \usepackage{url}
+\usepackage{amsmath}
 
 % TODO packages
 % https://tex.stackexchange.com/questions/9796/how-to-add-todo-notes
@@ -14,7 +15,7 @@
 \newcommandx{\thiswillnotshow}[2][1=]{\todo[disable,#1]{#2}}
 
 %opening
-\title{Monero + Trezor}
+\title{Monero wallet integration to Trezor}
 \author{Du\v{s}an Klinec}
 
 \begin{document}
@@ -29,23 +30,133 @@ Design of the Monero integration to the Trezor environment and reuired changes i
 
 \subsection{Notation}
 
-Basic system:
+\paragraph{Basic system}
 
 \begin{itemize}
-	\item $G$ is a base point of the curve ed25519 $E$, of order $l$
+	\item $G$ is a base point of the curve $E$ (ed25519) of the order $l$
 	\item $H_p : \{0,1\}^* \rightarrow E$, hash function to curve point
 	\item $H_s : \{0,1\}^* \rightarrow [1, l-1]$, hash function to the scalar
-	\item $H = H_p(G)$, a point on the curve $E$ where $H=hG$, $h$ is unknown
-	\item $(a, A)$, $(b, B)$ account view-key / spend-key pair
+	\item $H = H_p(G)$, a point on the curve $E$. It holds $H=hG$, $h$ is unknown
+	
 \end{itemize}
-\\
 
-Transactions:
+\paragraph{Transactions}
 
 \begin{itemize}
-	\item $(r, R)$ transaction key 
-	\item $(r, R)$ transaction key pair
+	\item $(a, A)$, $(b, B)$ account (sender) view-key / spend-key pair
+	\item $(r, R)$ transaction key-pair 
+	\item $(p, P)$ transaction spend key-pair
+	\begin{itemize}
+		\item $p = H_s(aR) + b$, also called ephemeral key. Used for spending.
+		\item $P = pG = H_s(aR)G + B$, public key stored in the transaction.
+	\end{itemize}
+	\item $aR$ is often called the derivation (ECDH)
 \end{itemize}
+
+\subsection{Environment}
+
+The basic setup is a Trezor wallet with the account keys and connected host with the monero software wallet.
+
+We start with the simplest setup, \verb|monero-wallet-cli|. Software wallet is connected to a full monero node (local or trusted remote).
+
+\paragraph{Account secrets.}
+Account key-pairs are BIP-44 generated from the seed. Spend-key never leaves the device.
+
+There are two variants w.r.t. view-key $a$:
+
+\begin{enumerate}
+	\item private scanning: view-key never leaves the device. Wallet synchronization is performed via Trezor. 
+	\item Performance scanning: view-key is exported to the host-based wallet
+	to do blockchain transaction scanning for the wallet.
+\end{enumerate}
+
+All other wallet related data, e.g., outputs with received moneros are
+stored in the wallet on the host. 
+
+\paragraph{Initialization.} The wallet can be either created from the fresh seed or the existing wallet can be recovered from the seed.
+
+The fresh wallet can be used right-away while the recovered wallet has to rescan the blockchain to detect all incoming transactions from since the wallet create time (if unknown, the whole blockchain).
+
+\section{Blockhain scanning}
+
+In order to receive incoming transfers the blockchain has to be scanned. A specific operation has to be performed on each transaction with the view-key $a$ to determine whether the transaction is destined to us.
+
+For a received transaction Tx we have $\left(R, P\right)$.
+Wallet computes: 
+
+\begin{equation}
+B^\prime = P - H_s(aR)G
+\end{equation}
+
+If $B^\prime$ is equal to user $B$ or it's sub-addresses then the transaction is destined for us. Otherwise not and can be ignored by the wallet.
+
+Complexity: 2 point multiplication, hashing, point subtraction.
+
+\subsection{Performance scanning} 
+The view-key $a$ is exported to the software wallet. For the receiving no Trezor interaction is needed. 
+
+\noindent Prons:
+\begin{itemize}
+	\item Very fast synchronization.
+	\item Receiving monneros and balance without need to have Trezor connected.
+	\item Only small code changes required in the official Monero wallet.
+\end{itemize}
+
+\noindent Cons:
+\begin{itemize}
+	\item Privacy loss. Host malware can read all future incoming inputs and the amounts. View-key can leak.
+\end{itemize}
+
+\subsection{Private scanning}
+The view-key $a$ never leaves the device. The device has to be connected
+for the wallet refresh. 
+Each new transaction has to be sent to the device for the identification.
+To optimize the performance the following schema is suggested.
+
+\;
+During the wallet refresh the wallet loads missing blocks from the full-node RPC server. Each query yields 1000 blocks at maximum. 
+
+\paragraph{Fast batched scanning:}
+\begin{enumerate}
+	\item Choose a batch size $bt$
+	\item Create a list $lst = [(R_k, P_k), (R_{k+1}, P_{k+1}), ...]$ such that $|lst| \leq bt$
+	\item Send $lst$ to the Trezor
+	\item Initially Trezor sets $res = []$
+	\item Trezor processes each $(R_i, P_i)$. If there is a match, the index $i \rightarrow res$ is added to the result array.
+	\item Trezor returns $res$ 
+\end{enumerate}
+Most of the time the Trezor will just return empty list $[]$ as there is no new incoming transaction destined to the account. 
+
+If the list is not empty then the detailed scanning is performed for each transaction
+
+\paragraph{Detailed scanning:} In this phase the host wallet sends transaction previosly identified as belonging to our accont for processing to the Trezor. The whole transaction output is sent to the Trezor so it can extract the the amount from the transaction.
+
+\paragraph{Summary:}
+The similar mode of operation is also proposed by the Ledger Monero Wallet\todo{cite}, which is slower in terms of computations and bandwidth. Moreover lack the batching thus we conclude this is mode is also viable alternative for more privacy sensitive users.
+
+\noindent Prons:
+\begin{itemize}
+	\item The view-key $a$ never leaves the device.
+	\item $a$ cannot be exfiltrated from the compromised host
+	\item Same level of security as a competitor.
+\end{itemize}
+
+\noindent Cons:
+\begin{itemize}
+	\item Slower wallet synchronization.
+	\item Walet restore could be unfeasible (or take days to complete). Benchmark is needed for this.
+	\item More code changes in the existing software wallets to implement the batching. Without batching it could be implemented with minimal changes (forwarding $aR$ operation to the device).
+	\item Inputs and the amounts still visible on the host.
+\end{itemize}
+
+\paragraph{Extension} In order to increase the privacy we could hide 
+all transaction inputs on the hosts, to protect the balance value. The balance would be visible only on the Trezor device on request.
+
+The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction (sending Moneros). The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. 
+
+ 
+
+
 
 
 %\improvement[inline]{Add more}
