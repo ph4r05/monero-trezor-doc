@@ -304,16 +304,15 @@ The sensitive sub-results are returned sealed to the hardware wallet, encrypted 
 The more complex integration scenario description follows.
 \begin{enumerate}
 	\item Chrome plugin - communication channel to the Trezor device. 
-	JS interface to the Trezor. Minimal changes, add custom messages, maybe.
-	Protobuf or JSON interface.
+	JS interface to the Trezor. Minimal changes, add new Monero-related messages.
 	
 	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). User can run his own local node. The node is set in the trezor.io menu. By default there can be implicit node owned by the SatoshiLabs / Monero open nodes.
 	
 	\item Basic Monero JS wallet (quite a lot of work). Simple receive + sending. Minimalistic for start.
 	
-	\item Trezor.io wallet. Stores transfers, does transaction scanning, wallet refresh, range proof, bulletproof. 
+	\item Trezor.io wallet. Stores transfers, does transaction scanning, wallet refresh. Range proof, bulletproof could be implemented on the Trezor directly for this case. 
 	 
-	\item Need to implement monero crypto in JS. Basic curve ed25519 operations, SHA-3.
+	\item Need to implement Monero crypto in JS. Basic curve ed25519 operations, SHA-3 based $H_s(), H_p()$.
 	 
 \end{enumerate}
 
