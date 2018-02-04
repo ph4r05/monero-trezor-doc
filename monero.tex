@@ -299,11 +299,11 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 
 The naive and the most straightforward variant is to replicate Ledger design. On the other hand the design is quite imature and will be subject to changes with high probability. I am also not convinced by its security. As we have more resources on Trezor I propose to do the whole transaction signature in the Trezor.
 
-The current software wallet implementation may generate multiple pending transactions while only one is sent eventually in a process of assembling the inputs and the fee computation. Without need to redesign the software wallet logic we propose to generate multiple transactions in a similar fashion while only the one being sent and confirmed by the user will be valid. 
+The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in a process of assembling the inputs and the fee computation. Without a need to redesign the software wallet logic we propose to generate multiple transactions in a similar fashion while only the one being sent and confirmed by the user will be valid. 
 
-For the sake of preserving the same logic Trezor builds pending transactions which are sealed with the format preserving encryption with per transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields, but instead of valid signatures it contains its encrypted version. 
+For the sake of preserving the same logic Trezor builds pending transactions which are sealed with the format preserving encryption with per transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields, but instead of valid signatures it contains their encrypted versions. 
 
-Once the algorithm picks correct a transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction content is unsealed (decrypted) and the valid transaction is returned. After that the transaction state is reset.
+Once the algorithm picks the correct transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction content is unsealed (decrypted) and the valid transaction is returned. After that the transaction state is reset.
 
 %\begin{enumerate}
 %	\item Transaction state (counter, randomness, per tsx encryption key)
@@ -315,17 +315,17 @@ Once the algorithm picks correct a transaction to send the user has to confirm a
 \subsubsection{Protocol description} High level protocol description.
 Trezor stores a transaction state:
 \begin{itemize}
-	\item Transaction counter $c_{tsx}$
-	\item Transaction data (input, outputs, $(r,R), \dots$)
-	\item Master key $k_{mst}$
-	\item Base encryption key $k_{enc}$
-	\item Base HMAC key $k_{hmac}$
+	\item Global transaction counter $c_{tsx}$
+	\item Transaction data (input, outputs, $(r,R)$, range proofs, signatures, $\dots$)
+	\item Transaction master key $k_{mst}$.
+	\item Transaction base encryption key $k_{enc}$
+	\item Transaction base HMAC key $k_{hmac}$
 	\item Sealed transaction HMAC value $tsx_{hmac}$
 \end{itemize}
 
 \noindent The protocol:
 \begin{enumerate}
-	\item $H \rightarrow T$: $TsxData = \left[\left(T_{out,i}, \text{amount}_i, \text{payment\_id}_i\right), \dots \right]$. Send initial transaction info to the Trezor, call InitTransaction$\left(TsxData\right)$.
+	\item $H \rightarrow T$: $TsxData = \left[\left(T_{out,i}, \text{amount}_i, \text{payment\_id}_i\right), \dots \right]$. Send initial transaction data to the Trezor, call InitTransaction$\left(TsxData\right)$.
 	
 	\begin{enumerate}
 		\item $T$: Reset the Trezor transaction state, store $TsxData$.
