@@ -297,19 +297,19 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 
 \subsection{Signing protocol}
 
-The naive and the most straightforward variant is to replicate Ledger design. On the other hand the design is quite imature and will be subject to changes with high probability. I am also not convinced by its security. As we have more resources on Trezor I propose to do the whole transaction signature in the Trezor.
+The naive and the most straightforward variant is to replicate Ledger design. On the other hand, the design is quite immature and will be subject to changes with high probability. I am also not convinced by its security. As we have more resources on Trezor, I propose to do the whole transaction signature in the Trezor.
 
-The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in a process of assembling the inputs and the fee computation. Without a need to redesign the software wallet logic we propose to generate multiple transactions in a similar fashion while only the one being sent and confirmed by the user will be valid. 
+The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in the process of assembling the inputs and the fee computation. Without a need to redesign the software wallet logic we propose to generate multiple transactions similarly while only the one being sent and confirmed by the user will be valid. 
 
-For the sake of preserving the same logic Trezor builds pending transactions which are sealed with the format preserving encryption with per transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields, but instead of valid signatures it contains their encrypted versions. 
+For the sake of preserving the same logic, Trezor builds pending transactions which are sealed with the format preserving encryption with per transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields, but instead of valid signatures, it contains their encrypted versions. 
 
-Once the algorithm picks the correct transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction content is unsealed (decrypted) and the valid transaction is returned. After that the transaction state is reset.
+Once the algorithm picks the correct transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction content is unsealed (decrypted) and the valid transaction is returned. After that, the transaction state is reset.
 
 %\begin{enumerate}
-%	\item Transaction state (counter, randomness, per tsx encryption key)
-%	\item Messages for the communication (tsx inputs)
-%	\item Messages for range proof offloading.
-%	\item Final transaction send.	
+%    \item Transaction state (counter, randomness, per tsx encryption key)
+%    \item Messages for the communication (tsx inputs)
+%    \item Messages for range proof offloading.
+%    \item Final transaction send.    
 %\end{enumerate}
 
 \subsubsection{Protocol description} High level protocol description.
@@ -356,9 +356,9 @@ Trezor stores a transaction state:
 		\item Compute the HMAC to protect transaction integrity and store it to the state.
 		$tsx_{hmac} = \text{HMAC}(T_{seal}, k_{hmac}, \text{SHA-256})$
 	\end{enumerate} 
-
+	
 	\item $T \rightarrow H$: Return the sealed transaction $T_{seal}$.
-		
+	
 	\item $H \rightarrow T$: Request the unsealed transaction.
 	\begin{enumerate}
 		\item $T$: Ask user for confirmation.
@@ -378,15 +378,16 @@ The more complex integration scenario description follows.
 	\item Chrome plugin - communication channel to the Trezor device. 
 	JS interface to the Trezor. Minimal changes, add new Monero-related messages.
 	
-	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). User can run his own local node. The node is set in the trezor.io menu. By default there can be implicit node owned by the SatoshiLabs / Monero open nodes.
+	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). A user can run his local node. The node is set in the trezor.io menu. By default, there can be implicit node owned by the SatoshiLabs / Monero open nodes.
 	
-	\item Basic Monero JS wallet for Trezor.io. Minimalistic for start. Simple receive + sending (spending proofs, etc... can be added later or by community). 
+	\item Basic Monero JS wallet for Trezor.io. Minimalistic for a start. Simple receive + sending (spending proofs, etc. can be added later or by the community). 
 	
 	\item Trezor.io wallet stores transfers, does transaction scanning, wallet refresh. Range proof, bulletproof could be implemented on the Trezor directly for this case. 
-	 
+	
 	\item Need to implement Monero crypto in JS. Basic curve ed25519 operations, SHA-3 based $H_s(), H_p()$.
-	 
+	
 \end{enumerate}
+
 
 \section{Implementation - simple case}
 
