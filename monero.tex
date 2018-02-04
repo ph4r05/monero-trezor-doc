@@ -310,20 +310,21 @@ Once the algorithm picks the correct transaction to send the user has to confirm
 %    \item Final transaction send.    
 %\end{enumerate}
 
-\subsubsection{Protocol description} High level protocol description.
-Trezor stores a transaction state:
+\subsubsection{Protocol description} The first draft of the high level protocol description.
+All signatures are performed in the Trezor on the set of spending inputs in one step. Output range-proofs are offloaded to the host.
+
+\; 
+\noindent The Trezor stores a transaction state:
 \begin{itemize}
 	\item Global transaction counter $c_{tsx}$
-	\item Transaction data (input, outputs, $(r,R)$, range proofs, signatures, $\dots$)
-	\item Transaction master key $k_{mst}$.
-	\item Transaction base encryption key $k_{enc}$
-	\item Transaction base HMAC key $k_{hmac}$
+	\item Transaction data (inputs, outputs, $(r,R)$, range proofs, signatures, $\dots$)
+	\item Transaction cryptographic material: master key $k_{mst}$, base encryption key $k_{enc}$, base HMAC key $k_{hmac}$
 	\item Sealed transaction HMAC value $tsx_{hmac}$
 \end{itemize}
 
 \noindent The protocol:
 \begin{enumerate}
-	\item $H \rightarrow T$: $TsxData = \left[\left(T_{out,i}, \text{amount}_i, \text{payment\_id}_i\right), \dots \right]$. Send initial transaction data to the Trezor, call InitTransaction$\left(TsxData\right)$.
+	\item $H \rightarrow T$: $TsxData = \left[\left(T_{out,i}, \text{amount}_i, \text{payment\_id}_i\right), \dots \right]$. Host sends the initial transaction data $TsxData$ to the Trezor by calling\\ InitTransaction$\left(TsxData\right)$.
 	
 	\begin{enumerate}
 		\item $T$: Reset the Trezor transaction state, store $TsxData$.
@@ -349,9 +350,15 @@ Trezor stores a transaction state:
 	
 	\item $H \rightarrow T$: Request to get the sealed transaction  $T_{seal}$.
 	\begin{enumerate}
-		\item Signature fields are encrypted with $k_{enc}$ using AES-256 in CBC mode with $IV = H(r \; || \; \text{fieldIdx})$
+		\item $T$: Transaction sanity check
 		
-		\item Compute the HMAC to protect transaction integrity and store it to the state.
+		\item $T$: Perform RingCT signatures on inputs
+		
+		\item $T$: Compute output commitments
+		
+		\item $T$: Signature fields are encrypted with $k_{enc}$ using AES-256 in CBC mode with $IV = H(r \; || \; \text{fieldIdx})$
+		
+		\item $T$: Compute the HMAC to protect transaction integrity and store it to the state.
 		$tsx_{hmac} = \text{HMAC}(T_{seal}, k_{hmac}, \text{SHA-256})$
 	\end{enumerate} 
 	
@@ -359,11 +366,11 @@ Trezor stores a transaction state:
 	
 	\item $H \rightarrow T$: Request the unsealed transaction.
 	\begin{enumerate}
-		\item $T$: Ask user for confirmation.
+		\item $T$: Ask the user for a confirmation.
 		\item $T$: Verify if $tsx_{hmac} = \text{HMAC}(T_{seal}, k_{hmac}, \text{SHA-256})$.
-		\item Decrypt $T_{seal}$ transaction fields.
+		\item $T$: Decrypt $T_{seal}$ transaction fields.
 	\end{enumerate}
-	\item $T \rightarrow H$: A valid transaction $T_{clear}$.
+	\item $T \rightarrow H$: The valid transaction $T_{clear}$.
 	
 \end{enumerate}
 %\improvement[inline]{Finish decription}
@@ -382,15 +389,16 @@ The more complex integration scenario description follows.
 	
 	\item Trezor.io wallet stores transfers, does transaction scanning, wallet refresh. Range proof, bulletproof could be implemented on the Trezor directly for this case. 
 	
-	\item Need to implement Monero crypto in JS. Basic curve ed25519 operations, SHA-3 based $H_s(), H_p()$.
+	\item Implement Monero crypto in JS. Basic curve ed25519 operations, SHA-3 based $H_s(), H_p()$.
 	
 \end{enumerate}
 
 
 \section{Implementation - simple case}
 
-TBD. 
 \improvement[inline]{Finish}
+
+\noindent TBD. Depends on the final requirements.
 
 \begin{enumerate}
 	\item Incremental, start with MVP, minimal viable product.
@@ -401,6 +409,13 @@ TBD.
 \end{enumerate}
 
 
+%\section{Current progress}
+%The current state of the work:
+%
+%\begin{itemize}
+%	\item Finishing the feasibility study and the analysis of the Monero and Trezor.
+%	\item 
+%\end{itemize}
 
 
 %\improvement[inline]{Add more}
