@@ -54,20 +54,22 @@ Here follows the basic description of the Monero system, environment, and operat
 		\item $D_{i,j} = B + H_s(a \; || \; i \; || \; j)G$
 		\item $C_{i,j} = aD_{i,j}$ 
 	\end{enumerate}
-	\item $(r, R)$ transaction key-pair 
-	\item $(p, P)$ transaction spend key-pair
+	\item $(r, R)$ transaction key-pair. Unique per transaction. 
+	\item $(p, P)$ transaction spend key and output address. Unique per transaction output.
 	\begin{enumerate}
 		\item $p = H_s(aR) + b$, also called ephemeral key. Used for spending.
 		\item $P = pG = H_s(aR)G + B$, public key stored in the transaction.
 	\end{enumerate}
-	\item $aR$ is often called the derivation (ECDH)
+	\item $aR$ is also called the derivation (ECDH)
 \end{itemize}
+
+EC points and scalars ocupy 32 B.
 
 \subsection{Environment}
 
 The basic setup is a Trezor hardware wallet with the account keys and a connected host.
 
-We start with the most straightforward setup.
+We start with the most straightforward setup:
 \begin{itemize}
 	\item The host is running a Monero software wallet \verb|monero-wallet-cli|
 	
@@ -80,20 +82,19 @@ We start with the most straightforward setup.
 
 Later, also the monero-gui wallet is extended to support the Trezor.
 
-\paragraph{Account secrets.}
-Account key-pairs are BIP-44 generated from the seed. Spend-key never leaves the device.
-
-There are two variants w.r.t. view-key $a$:
+\subsection{Account secrets.}
+Account key-pairs are BIP-44 generated from the seed. Spend-key never leaves the device. There are two variants w.r.t. the view-key $a$:
 
 \begin{enumerate}
-	\item Private BC scanning: view-key never leaves the device. Wallet synchronization is performed via Trezor. 
 	\item Performance BC scanning: view-key is exported to the host-based wallet to do blockchain transaction scanning for the wallet.
+	\item Private BC scanning: view-key never leaves the device. The wallet synchronization is performed via Trezor. 
 \end{enumerate}
 
 All other wallet related data, e.g., outputs with received moneros are
-stored in the wallet on the host. 
+stored in the wallet on the host.
 
-\paragraph{Initialization.} The wallet can be either created from a fresh seed or recovered from the existing seed.
+\subsection{Initialization} 
+The wallet can be either created from a fresh seed or recovered from the existing seed.
 
 The fresh wallet can be used right-away while the recovered wallet has to rescan the blockchain to detect all incoming transactions from since the wallet create time (if unknown, the whole blockchain).
 
@@ -108,9 +109,27 @@ The wallet computes:
 B^\prime = P - H_s(aR)G
 \end{equation}
 
-If $B^\prime$ is equal to the user's $B$ or one of it's sub-addresses then the transaction is destined for us. Otherwise not and can be ignored by the wallet.
 
-Complexity: 2 point multiplication, hashing, point subtraction.
+If $\left(B^\prime = B\right) \; \vee \; \left(B^\prime \in \{D_{i,j}\}_{i,j}\right)$, then\footnote{$B^\prime$ is equal to the user's $B$ or one of it's sub-addresses} the transaction is destined for us. Otherwise not and can be ignored by the wallet.
+
+Computation complexity per transaction: 2x point multiplications, 1x SHA-3, 1x point subtraction.
+
+\subsection{Sub-addresses}
+The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j)$, unsigned 32 bit major and minor index \cite{mrl_006_subaddr}.
+
+\begin{itemize}
+	\item The $(C_{i,j}, D_{i,j})$ is sub-address with major index $i$ and the minor index $j$.
+	
+	\item  The wallet holds mappings $D_{i,j} \rightarrow (i, j)$ and $(i, j) \rightarrow D_{i,j}$. 
+	
+	\item According to the convention, the master address has indices $(0, 0)$.
+	
+	\item Public key for sending tsx to sub-address: $P = H_s(sC_{i,j})G + D_{i,g}$
+	
+	\item Private spending key: $p = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
+	
+	\item The scanning for funds works with the same formula, only one computation is required. See \cite{mrl_006_subaddr} for details.
+\end{itemize}
 
 \subsection{Performance scanning} 
 The view-key $a$ is exported to the software wallet. For the receiving, no Trezor interaction is needed. 
@@ -133,26 +152,59 @@ to the wallet refresh.
 Each new transaction has to be sent to the device for the identification.
 To optimize the performance the following schema is suggested.
 
-\;
+\subsubsection{Naive approach} One roundtrip per transaction to determine the transaction ownership. 
+\begin{enumerate}
+	\item Send $(R, P)$ to the Trezor
+	\item Trezor returns $B^\prime$, where $B^\prime = P - H_s(aR)G$
+\end{enumerate}
+
+If the host finds a match with $B^\prime$ it performs additional roundtip to determine the transaction output value for RingCT transactions.
+
+This the most straightworard approach is also suggested in the Ledger proposal \cite{ledger_doc}. The performance can be significantly degraded due to high computation and communication overhead. Although a benchmark would be needed to determine the baseline performance.
+
+In terms of implementation this is rather simple way as only the low level operations are forwarded to the HW wallet leaving most of the original code intact.
+
+Communication complexity: One roundtrip per transaction output. Transaction can have multiple outputs, block contains more transactions so multiple transactions per one block refresh. Request is 64~B in size, response 32~B.
+
+\subsubsection{Fast batched scanning}
 During the wallet refresh the wallet loads missing blocks from the full-node RPC server. Each query yields 1000 blocks at maximum. 
 
-\paragraph{Fast batched scanning:}
+The host wallet sends a batch of transaction outputs to decide the ownership in the Trezor. This part is called a \emph{transaction output identification}.
+
 \begin{enumerate}
 	\item Choose a batch size $bt$
 	\item Create a list $lst = [(R_k, P_k), (R_{k+1}, P_{k+1}), ...]$ such that $|lst| \leq bt$
 	\item Send $lst$ to the Trezor
-	\item Initially Trezor sets $res = []$
-	\item Trezor processes each $(R_i, P_i)$. If there is a match, the index $i \rightarrow res$ is added to the result array.
+	\item Initially, Trezor sets $res = []$
+	\item Trezor processes each $(R_i, P_i)$. If there is a match, the index is added to the result array $i \rightarrow res$.
 	\item Trezor returns $res$ 
 \end{enumerate}
-Most of the time the Trezor will just return an empty list $[]$ as there is no new incoming transaction destined to the account. 
+Most of the time the Trezor will just return an empty list as there is no new incoming transaction output destined to the account. If the list is not empty then the detailed scanning is performed for each transaction. 
 
-If the list is not empty then the detailed scanning is performed for each transaction
+Communication complexity: One message round trip per the batch. The request is $64bt$~B in size. The response is maximally $2bt$~B in size while the expected value is close to zero with overwhelming probability. 
 
 \paragraph{Detailed scanning:} In this phase the host wallet sends transaction previously identified as belonging to our account for processing to the Trezor. The whole transaction output is sent to the Trezor so it can extract the amount and the mask from the transaction.
 
-\paragraph{Summary:}
-The similar mode of operation is also proposed by the Ledger Monero Wallet \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, lack the batching thus we conclude this is mode is also a viable alternative for more privacy-sensitive users.
+\paragraph{Sub-addresses:}
+Wallet can generate sub-addresses for others to send moneros to. Over the time wallet generates and stores multiple sub-addresses. 
+For a recovered wallet sub-addresses are pre-computed in advance (look-ahead limits $L_M, L_m$)\todo{particular numbers}.
+This poses a problem for the private BC scanning on the Trezor if the number of sub-addresses is large as the Trezor needs to decide transaction ownership using the sub-addresses set\footnote{The set of size several thousands of address may be difficult to store in the device}.
+
+There are several workaround variants for the transaction output identification. The request remains the same, the batch of $(R_i, P_i)$ per transaction output.
+
+\begin{enumerate}
+	\item The Trezor returns a list of results $\left[B^{\prime}_k, B^{\prime}_{k+1}, \dots\right]$ instead of the index list. The decision is then made on the host. Each point has 32 B in size. This variant increases a communication overhead as each transaction output yields $B^{\prime}_i$.
+	
+	\item The Trezor returns a list similarly as in the previous variant with a difference of sending prefix of the fixed size $p_s$
+	$\left[\text{prefix}_{p_s}\left(B^{\prime}_k\right), \text{prefix}_{p_s}\left(B^{\prime}_{k+1}\right), \dots\right]$. Host matches the prefixes with the internal prefix database. If match is found, transaction is sent for detailed scanning (as before). Trezor might return null as a false positive hit.
+	
+	\item Trezor builds an internal mapping $\text{prefix}_{p_s}\left(D_{i,j}\right) \rightarrow \left[(i, j), \dots\right]$.
+	If the Trezor finds a prefix match it computes the full sub-address for all matched indices $(i,j)$ to decide false-positive vs. match. Then it returns a list $\left[(idx_1, (i_1, j_1), (idx_2, (i_2, j_2), \dots)\right]$ with all matched results to the host. 
+	
+\end{enumerate}
+
+\subsubsection{Summary}
+Ledger Monero Wallet is using the private blockchain scanning by default \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, it lacks the batching thus we conclude this our improvements are viable alternatives for privacy-sensitive users.
 
 \noindent Prons:
 \begin{itemize}
@@ -165,40 +217,13 @@ The similar mode of operation is also proposed by the Ledger Monero Wallet \cite
 \begin{itemize}
 	\item Slower wallet synchronization.
 	\item Wallet restore could be unfeasible as the whole blockchain has to be scanned (or take days to complete). Benchmark is needed for this.
-	\item More code changes in the existing software wallets to implement the batching. Without batching it could be implemented with minimal changes (forwarding $aR$ operation to the device).
+	\item More code changes in the existing software wallets to implement the batching. The naive approach can be implemented with minimal changes (forwarding $aR$ operation to the device).
 	\item Inputs and the amounts still visible on the host.
 \end{itemize}
 
-\paragraph{Extension} In order to increase the privacy we could hide all transaction inputs on the hosts, to protect the balance value. The balance would be visible only on the Trezor device on request.
+\subsubsection{Extension} In order to increase the privacy we could hide all transaction inputs on the hosts, to protect the balance value. The balance would be visible only on the Trezor device on request.
 
 The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction (sending Moneros). The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. 
-
-\subsection{Sub-addresses}
-Initially only the master wallet will be supported with the future sub-address support in mind \cite{mrl_006_subaddr}.
-
-The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j)$, unsigned 32 bit major and minor index.
-
-\begin{itemize}
-	\item The $(C_{i,j}, D_{i,j})$ is sub-address with major index $i$ and the minor index $j$.
-	
-	\item  The wallet holds mappings $D_{i,j} \rightarrow (i, j)$ and $(i, j) \rightarrow D_{i,j}$. 
-	
-	\item According to the convention, the master address has indices $(0, 0)$.
-	
-	\item Public key for sending tsx to sub-address: $P = H_s(sC_{i,j})G + D_{i,g}$
-	
-	\item Private spending key: $p = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
-	
-	\item The scanning for funds works with the same formula, only one computation is required. See \cite{mrl_006_subaddr} for details.
-\end{itemize}
-
-
-\paragraph{Privacy scanning.}
-The sub-addresses are precomputed in advanced in large numbers (look-ahead limits). 
-This poses a problem for the private BC scanning on the Trezor as it needs to identify whether the result of the operation belongs to the sub-addresses set or not. The set of size several thousands of address may be difficult to store on the device.
-
-Trezor does not have to store the whole $D_{i,j} \rightarrow (i, j)$ mapping but stores only a fixed prefix of $D_{i,j}$ such as: 
-$prefix(D_{i,j}, preflen) \rightarrow [(i, j), \dots]$. When a match is found the Trezor can compute sub-addresses for all matched indices to decide false positive vs. hit, with possible LRU caching.
 
 
 \section{Sending a transaction}
