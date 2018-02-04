@@ -247,9 +247,9 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item The final Ring signatures on inputs will be performed in the Trezor.
 \end{enumerate}
 
-\paragraph{Ledger comparison.} The Ledge proposal \cite{ledger_doc} goes further with the protocol modification by employing a custom sub-division protocol. Due to hardware nature of the Ledger (about 1k RAM) it is not feasible to compute the transaction in the Ledger so another partial approach had to be chosen.
+\paragraph{Ledger comparison.} The Ledge proposal \cite{ledger_doc} goes further with the protocol modification by employing a custom sub-division protocol. Due to hardware nature of the Ledger (about 1k RAM) it is not feasible to compute the transaction in the Ledger in one step so a multi-step approach had to be chosen.
 
-The majority of transaction building process is performed in the software wallet while only the low-level crypto operations with the secret keys are performed on the Ledger.  
+The majority of transaction building process is performed in the software wallet while only the low-level crypto operations with the secret keys are performed in the Ledger.  
 
 The sensitive sub-results are returned sealed to the hardware wallet, encrypted by simple AES/ECB encryption with transaction specific encryption key, so the sensitive values cannot be used beyond the transaction scope. Ledger has to unseal the inputs, perform the operation and reseal the outputs before returning the result to the wallet. Moreover, to protect the protocol integrity the inputs are hashed. 
 
@@ -289,9 +289,9 @@ The sensitive sub-results are returned sealed to the hardware wallet, encrypted 
 	
 	\item T: Generate transaction random challenge $sec$, increase tsx counter. Send $(H(sec), tsx_i)$ to the host. \todo{Maybe needed later for tsx identification?}
 	
-	\item Set Inputs + fake outputs.
+	\item Set inputs + fakes.
 	
-	\item Set Range proof for $T_{out}$.
+	\item Set range proof for $T_{out}$. Optional, can be computed in the Trezor, may be slower. Useful for Trezor.io (no JS implementation needed).
 	
 	\item Get signed transaction ready for broadcast.
 	
