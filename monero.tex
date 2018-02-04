@@ -235,8 +235,8 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item Generate a tsx key-pair $(r, R)$
 	\item Process a stealth payment ID
 	\item Find random non-spend outputs $T_{in}$ covering the $xmr$ + fee.
-	\item Find fake outputs\footnote{get\_outs()} of the given value as $T_{in}$.
-	\item Load the transaction information $(P_i, C_i)$, public key and the value commitment, from the full-node RPC server for the real and fake outputs going to spend.
+	\item Find fake outputs\footnote{get\_outs()} for $T_{in}$.
+	\item Load the transaction information $(P_i, C_i)$, public key (address) and the amount commitment, from the full-node RPC server for the real and fake outputs going to spend.
 	\item For each input transaction $T_{in}$:
 	\begin{enumerate}
 		\item Compute a derivation $\mathcal{D}_{in} = aR_{in}$
@@ -277,13 +277,13 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 
 The majority of transaction building process is performed in the software wallet while only the low-level crypto operations with the secret keys are performed in the Ledger.  
 
-The sensitive sub-results are returned sealed to the software wallet, encrypted by simple AES/ECB encryption with transaction specific encryption key, so the sensitive values cannot be used beyond the transaction scope. Ledger has to unseal the inputs, perform the operation and reseal the outputs before returning the result to the wallet. Moreover, to protect the protocol integrity the inputs are hashed in the Ledger. 
+The sensitive sub-results are returned sealed to the software wallet, encrypted by simple AES/ECB encryption with transaction-specific encryption key, so the sensitive values cannot be used beyond the transaction scope. Ledger has to unseal the inputs, perform the operation and reseal the outputs before returning the result to the wallet. Moreover, to protect the protocol integrity the inputs are hashed in the Ledger. 
 
 \;
 \noindent Pros:
 \begin{itemize}
 	\item Rather simple implementation. The software wallet performs the heavy-lifting while some of the 
-	low-level crypto calls are routed to the Ledger. The sealing is somehow format preserving encryption so no data structure augmentation is needed. Code modifications are smaller.
+	low-level crypto calls are proxied to the Ledger. The sealing is somehow format preserving encryption so no data structure augmentation is needed. Code modifications are smaller.
 	\item Device holds the minimal transaction state.
 	\item Abstract device implementation, proposed protocol. We could alleviate an existing PR\cite{ledger_pr} in the Monero wallet.
 \end{itemize}
@@ -300,7 +300,7 @@ The naive and the most straightforward variant is to replicate Ledger design. On
 
 The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in the process of assembling the inputs and the fee computation. Without a need to redesign the software wallet logic we propose to generate multiple transactions similarly while only the one being sent and confirmed by the user will be valid. 
 
-For the sake of preserving the same logic, Trezor builds pending transactions which are sealed with the format preserving encryption with per transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields, but instead of valid signatures, it contains their encrypted versions. 
+For the sake of preserving the same logic, Trezor builds pending transactions which are sealed with the format preserving encryption with per-transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields, but instead of valid signatures, it contains their encrypted versions. 
 
 Once the algorithm picks the correct transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction content is unsealed (decrypted) and the valid transaction is returned. After that, the transaction state is reset.
 
