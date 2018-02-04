@@ -63,7 +63,7 @@ Here follows the basic description of the Monero system, environment, and operat
 	\item $aR$ is also called the derivation (ECDH)
 \end{itemize}
 
-EC points and scalars ocupy 32 B.
+EC points and scalars occupy 32 B.
 
 \subsection{Environment}
 
@@ -134,7 +134,7 @@ The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j
 \subsection{Performance scanning} 
 The view-key $a$ is exported to the software wallet. For the receiving, no Trezor interaction is needed. 
 
-\noindent Prons:
+\noindent Pros:
 \begin{itemize}
 	\item High-speed synchronization.
 	\item Receiving moneros and balance without a need to have Trezor connected.
@@ -206,7 +206,7 @@ There are several workaround variants for the transaction output identification.
 \subsubsection{Summary}
 Ledger Monero Wallet is using the private blockchain scanning by default \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, it lacks the batching thus we conclude this our improvements are viable alternatives for privacy-sensitive users.
 
-\noindent Prons:
+\noindent Pros:
 \begin{itemize}
 	\item The view-key $a$ never leaves the device.
 	\item $a$ cannot be exfiltrated from the compromised host
@@ -279,7 +279,7 @@ The majority of transaction building process is performed in the software wallet
 The sensitive sub-results are returned sealed to the software wallet, encrypted by simple AES/ECB encryption with transaction specific encryption key, so the sensitive values cannot be used beyond the transaction scope. Ledger has to unseal the inputs, perform the operation and reseal the outputs before returning the result to the wallet. Moreover, to protect the protocol integrity the inputs are hashed in the Ledger. 
 
 \;
-\noindent Prons:
+\noindent Pros:
 \begin{itemize}
 	\item Rather simple implementation. The software wallet performs the heavy-lifting while some of the 
 	low-level crypto calls are routed to the Ledger. The sealing is somehow format preserving encryption so no data structure augmentation is needed. Code modifications are smaller.
@@ -292,8 +292,6 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 	\item Sound security analysis is missing. 
 	\item The partial protocol can be vulnerable e.g., to change address attacks.
 \end{itemize}
-
-\noindent 
 
 \subsection{Signing protocol}
 
