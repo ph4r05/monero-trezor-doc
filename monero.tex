@@ -1,7 +1,10 @@
 \documentclass[]{article}
+\usepackage[T1]{fontenc}
 \usepackage{cite}
 \usepackage{url}
 \usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
 
 % TODO packages
 % https://tex.stackexchange.com/questions/9796/how-to-add-todo-notes
@@ -45,6 +48,8 @@ Here follows the basic description of the Monero system, environment, and operat
 
 \begin{itemize}
 	\item $(a, A)$, $(b, B)$ account (sender) view-key / spend-key pair
+	\item $(A, B)$ the public wallet address, $A=aG$, $B=bG$
+	\item $(C_{i,j}, D_{i,j})$ public sub-address with $i, j$ major minor index
 	\item $(r, R)$ transaction key-pair 
 	\item $(p, P)$ transaction spend key-pair
 	\begin{itemize}
@@ -93,7 +98,7 @@ The fresh wallet can be used right-away while the recovered wallet has to rescan
 In order to receive incoming transfers, the blockchain has to be scanned. A~specific operation has to be performed on each transaction with the view-key $a$ to determine whether the transaction is destined to us.
 
 For a received transaction Tx we have public keys $\left(R, P\right)$.
-Wallet computes: 
+The wallet computes: 
 
 \begin{equation}
 B^\prime = P - H_s(aR)G
@@ -163,6 +168,38 @@ The similar mode of operation is also proposed by the Ledger Monero Wallet \cite
 \paragraph{Extension} In order to increase the privacy we could hide all transaction inputs on the hosts, to protect the balance value. The balance would be visible only on the Trezor device on request.
 
 The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction (sending Moneros). The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. 
+
+\subsection{Sub-addresses}
+Initially only the master wallet will be supported with the future sub-address support in mind \cite{mrl_006_subaddr}.
+
+The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j)$, unsigned 32 bit major and minor index.
+
+\begin{align}
+	D_{i,j} &= B + H_s(a \; || \; i \; || \; j)G \\
+	C_{i,j} &= aD_{i,j} 
+\end{align}
+
+\begin{itemize}
+	\item The $(C_{i,j}, D_{i,j})$ is sub-address with major index $i$ and the minor index $j$.
+	
+	\item  The wallet holds mappings $D_{i,j} \rightarrow (i, j)$ and $(i, j) \rightarrow D_{i,j}$. 
+	
+	\item According to the convention, the master address has indices $(0, 0)$.
+	
+	\item Public key for sending tsx to sub-address: $P = H_s(sC_{i,j})G + D_{i,g}$
+	
+	\item Private spending key: $p = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
+	
+	\item The scanning for funds works with the same formula, only one computation is required. See \cite{mrl_006_subaddr} for details.
+\end{itemize}
+
+
+\paragraph{Privacy scanning.}
+The sub-addresses are precomputed in advanced in large numbers (look-ahead limits). 
+This poses a problem for the private BC scanning on the Trezor as it needs to identify whether the result of the operation belongs to the sub-addresses set or not. The set of size several thousands of address may be difficult to store on the device.
+
+Trezor does not have to store the whole $D_{i,j} \rightarrow (i, j)$ mapping but stores only a fixed prefix of $D_{i,j}$ such as: 
+$prefix(D_{i,j}, preflen) \rightarrow [(i, j), \dots]$. When a match is found the Trezor can compute sub-addresses for all matched indices to decide false positive vs. hit, with possible LRU caching.
 
 
 \section{Sending a transaction}
