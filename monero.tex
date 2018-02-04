@@ -297,34 +297,79 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 
 \subsection{Signing protocol}
 
-The current software wallet implementation may generate multiple pending transactions while only one is sent eventally. 
+The naive and the most straightforward variant is to replicate Ledger design. On the other hand the design is quite imature and will be subject to changes with high probability. I am also not convinced by its security. As we have more resources on Trezor I propose to do the whole transaction signature in the Trezor.
 
+The current software wallet implementation may generate multiple pending transactions while only one is sent eventually in a process of assembling the inputs and the fee computation. Without need to redesign the software wallet logic we propose to generate multiple transactions in a similar fashion while only the one being sent and confirmed by the user will be valid. 
+
+For the sake of preserving the same logic Trezor builds pending transactions which are sealed with the format preserving encryption with per transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields, but instead of valid signatures it contains its encrypted version. 
+
+Once the algorithm picks correct a transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction content is unsealed (decrypted) and the valid transaction is returned. After that the transaction state is reset.
+
+%\begin{enumerate}
+%	\item Transaction state (counter, randomness, per tsx encryption key)
+%	\item Messages for the communication (tsx inputs)
+%	\item Messages for range proof offloading.
+%	\item Final transaction send.	
+%\end{enumerate}
+
+\subsubsection{Protocol description} High level protocol description.
+Trezor stores a transaction state:
+\begin{itemize}
+	\item Transaction counter $c_{tsx}$
+	\item Transaction data (input, outputs, $(r,R), \dots$)
+	\item Master key $k_{mst}$
+	\item Base encryption key $k_{enc}$
+	\item Base HMAC key $k_{hmac}$
+	\item Sealed transaction HMAC value $tsx_{hmac}$
+\end{itemize}
+
+\noindent The protocol:
 \begin{enumerate}
-	\item Transaction state (counter, randomness, per tsx encryption key)
-	\item Messages for the communication (tsx inputs)
-	\item Messages for range proof offloading.
-	\item Final transaction send.	
-\end{enumerate}
+	\item $H \rightarrow T$: $TsxData = \left[\left(T_{out,i}, \text{amount}_i, \text{payment\_id}_i\right), \dots \right]$. Send initial transaction info to the Trezor, call InitTransaction$\left(TsxData\right)$.
+	
+	\begin{enumerate}
+		\item $T$: Reset the Trezor transaction state, store $TsxData$.
+		
+		\item $T$: Generate $(r, R)$, transaction key-pair.
+		
+		\item $T$: Increment Trezor transaction counter $c_{tsx}$, generate transaction master key $k_{mst} = H(TsxData, r, c_{tsx})$.
+		
+		\item $T$: Generate base encryption key $k_{enc} = H\left(\text{"enc"} \; || \; k_{mst}\right)$
+		
+		\item $T$: Generate HMAC key $k_{hmac} = H\left(\text{"hmac"} \; || \; k_{mst}\right)$
+	\end{enumerate}
+	
+	\item $H \rightarrow T$: Set inputs to spend + loaded fakes.
+	\begin{enumerate}
+		\item $T$: For each input: compute derivation, ephemeral spending key $x_{in}$, key image $I_{in}$.
+	\end{enumerate}
+	
+	\item $H \rightarrow T$: Set range proof for $T_{out}$. Optional, can be computed in the Trezor, may be slower. Useful for Trezor.io (no JS implementation needed).
+	\begin{enumerate}
+		\item $T$: Store the range proof.
+	\end{enumerate}
+	
+	\item $H \rightarrow T$: Request to get the sealed transaction  $T_{seal}$.
+	\begin{enumerate}
+		\item Signature fields are encrypted with $k_{enc}$ using AES-256 in CBC mode with $IV = H(r \; || \; \text{fieldIdx})$
+		
+		\item Compute the HMAC to protect transaction integrity and store it to the state.
+		$tsx_{hmac} = \text{HMAC}(T_{seal}, k_{hmac}, \text{SHA-256})$
+	\end{enumerate} 
 
-\paragraph{Protocol description}
-\begin{enumerate}
-	\item InitTransaction$( [(T_{out,i}, \text{amount}_i, \text{payment\_id}_i), \dots])$. Send initial transaction info to the Trezor.
+	\item $T \rightarrow H$: Return the sealed transaction $T_{seal}$.
+		
+	\item $H \rightarrow T$: Request the unsealed transaction.
+	\begin{enumerate}
+		\item $T$: Ask user for confirmation.
+		\item $T$: Verify if $tsx_{hmac} = \text{HMAC}(T_{seal}, k_{hmac}, \text{SHA-256})$.
+		\item Decrypt $T_{seal}$ transaction fields.
+	\end{enumerate}
+	\item $T \rightarrow H$: A valid transaction $T_{clear}$.
 	
-	\item T: Reset transaction state, store new transaction data.
-	
-	\item T: Generate $(r, R)$
-	
-	\item T: Generate transaction random challenge $sec$, increase tsx counter. Send $(H(sec), tsx_i)$ to the host. \todo{Maybe needed later for tsx identification?}
-	
-	\item Set inputs + fakes.
-	
-	\item Set range proof for $T_{out}$. Optional, can be computed in the Trezor, may be slower. Useful for Trezor.io (no JS implementation needed).
-	
-	\item Get signed transaction ready for broadcast.
-	
-
 \end{enumerate}
-\improvement[inline]{Finish decription}
+%\improvement[inline]{Finish decription}
+
 
 \section{Trezor.io}
 
@@ -335,9 +380,9 @@ The more complex integration scenario description follows.
 	
 	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). User can run his own local node. The node is set in the trezor.io menu. By default there can be implicit node owned by the SatoshiLabs / Monero open nodes.
 	
-	\item Basic Monero JS wallet (quite a lot of work). Simple receive + sending. Minimalistic for start.
+	\item Basic Monero JS wallet for Trezor.io. Minimalistic for start. Simple receive + sending (spending proofs, etc... can be added later or by community). 
 	
-	\item Trezor.io wallet. Stores transfers, does transaction scanning, wallet refresh. Range proof, bulletproof could be implemented on the Trezor directly for this case. 
+	\item Trezor.io wallet stores transfers, does transaction scanning, wallet refresh. Range proof, bulletproof could be implemented on the Trezor directly for this case. 
 	 
 	\item Need to implement Monero crypto in JS. Basic curve ed25519 operations, SHA-3 based $H_s(), H_p()$.
 	 
@@ -345,7 +390,11 @@ The more complex integration scenario description follows.
 
 \section{Implementation - simple case}
 
+TBD. 
+\improvement[inline]{Finish}
+
 \begin{enumerate}
+	\item Incremental, start with MVP, minimal viable product.
 	\item Tresor basic Monero related crypto, serialization.
 	\item Trezor HW device in Wallet2
 	\item Extending tsx generation, move the majority to the Trezor.
