@@ -242,29 +242,30 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 		\item Compute an ephemeral tsx spend key $(x_{in}, P_{in})$, \\where $x_{in} = H_s(aR_{in}) + b$
 		\item Compute a key image $I_{in} = x_{in}H_p(P_{in})$
 	\end{enumerate}
-	\item Build the set of output transactions $T_{out}$
-	\item If input $>$ output + fee, create a change transaction $T_{chx} \in T_{out}$. 
+	\item Build the set of output transactions $T_{out}$.
+	\item If input $>$ output + fee, create a change transaction $T_{chx} \rightarrow T_{out}$. 
+	\item For each transaction output $T_{out}$:
 	\begin{enumerate}
 		\item Compute the range proof. Borromean or Bulletproof \cite{monero_1098, Bnz2017BulletproofsSP}.
 		\item Mask output amount and the mask in \verb|ecdhInfo| with the secret $H_s(aR_{in})$ denoted the amount key.
 		\item Compute the output commitments:\\ 
-		$C = a_iG + xmrH$, where $a_i$ is a mask.
-		\item Compute Ring-CT MG for each $T_{in}$ (real + fake inputs)
+		$C = a_iG + xmrH$, where $a_i$ is a randomly generated mask.
+		\item Compute Ring-CT MG for each $T_{in}$ (real + fake inputs).
 	\end{enumerate}
-	\item Submit the transaction
+	\item Submit the transaction.
 \end{enumerate}
 
 \paragraph{Observations:}
 \begin{enumerate}
-	\item The transaction key pair $(r,R)$ should be generated in the Trezor to make sure the challenge is random (attacks by crafting $r$ on the host to leak the information). 
+	\item The transaction key pair $(r,R)$ should be generated in the Trezor to make sure the challenge is random and not re-used (attacks by crafting $r$ on the host to leak the information). 
 	
-	\item The input processing requires private keys - has to be done in Trezor. Trezor could display sum of all inputs. The transaction can be spent with the $x_{in}$, must not be leaked to the host.
+	\item The $T_{in}$ processing requires private keys - has to be done in Trezor. Trezor could display sum of all inputs. The transaction can be spent with the $x_{in}$, must not be leaked to the host.
 	
-	\item The change address has to be generated in the Trezor to avoid crafting change address by the compromised host (sending a huge change to the attacker). Change address cannot be confirmed easily - is random.
+	\item The change address has to be generated in the Trezor to avoid change address spoofing by the compromised host (sending a huge change to the attacker in the transaction confirmed by the user).
 	
-	\item Each Output + monero amount has to be manually confirmed on the Trezor to finish transaction processing.
+	\item Each transaction output $T_{out}$ and the monero amount has to be manually confirmed on the Trezor to finish the transaction processing.
 	
-	\item The range proof does not work with any secrets so it can be offloaded to the host. Rangeproofs are quite expensive operations and take up to 80\% of the whole transaction space\footnote{Bulletproof is simpler}. Implementation in the software wallet is significantly simpler and faster.
+	\item The range proof does not work with any secrets so it can be offloaded to the host. Rangeproofs are quite expensive operations and take up to 80\% of the whole transaction space\footnote{Bulletproof takes less space}. Implementation in the software wallet is significantly simpler and faster.
 	
 	\item Output commitments do not require secret keys but the computation is rather simple so can be performed in the Trezor.
 	
@@ -275,7 +276,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 
 The majority of transaction building process is performed in the software wallet while only the low-level crypto operations with the secret keys are performed in the Ledger.  
 
-The sensitive sub-results are returned sealed to the hardware wallet, encrypted by simple AES/ECB encryption with transaction specific encryption key, so the sensitive values cannot be used beyond the transaction scope. Ledger has to unseal the inputs, perform the operation and reseal the outputs before returning the result to the wallet. Moreover, to protect the protocol integrity the inputs are hashed. 
+The sensitive sub-results are returned sealed to the software wallet, encrypted by simple AES/ECB encryption with transaction specific encryption key, so the sensitive values cannot be used beyond the transaction scope. Ledger has to unseal the inputs, perform the operation and reseal the outputs before returning the result to the wallet. Moreover, to protect the protocol integrity the inputs are hashed in the Ledger. 
 
 \;
 \noindent Prons:
@@ -288,7 +289,7 @@ The sensitive sub-results are returned sealed to the hardware wallet, encrypted 
 
 \noindent Cons:
 \begin{itemize}
-	\item Thoughtful security analysis is missing. 
+	\item Sound security analysis is missing. 
 	\item The partial protocol can be vulnerable e.g., to change address attacks.
 \end{itemize}
 
