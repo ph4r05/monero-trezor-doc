@@ -246,7 +246,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item If input $>$ output + fee, create a change transaction $T_{chx} \rightarrow T_{out}$. 
 	\item For each transaction output $T_{out}$:
 	\begin{enumerate}
-		\item Compute the range proof. Borromean or Bulletproof \cite{monero_1098, Bnz2017BulletproofsSP}.
+		\item Compute the range proof. Borromean or Bulletproof \cite{monero_1098, borromean, Bnz2017BulletproofsSP}.
 		\item Mask output amount and the mask in \verb|ecdhInfo| with the secret $H_s(aR_{in})$ denoted the amount key.
 		\item Compute the output commitments:\\ 
 		$C = a_iG + xmrH$, where $a_i$ is a randomly generated mask.
@@ -297,6 +297,8 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 
 \subsection{Signing protocol}
 
+The current software wallet implementation may generate multiple pending transactions while only one is sent eventally. 
+
 \begin{enumerate}
 	\item Transaction state (counter, randomness, per tsx encryption key)
 	\item Messages for the communication (tsx inputs)
@@ -308,7 +310,7 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 \begin{enumerate}
 	\item InitTransaction$( [(T_{out,i}, \text{amount}_i, \text{payment\_id}_i), \dots])$. Send initial transaction info to the Trezor.
 	
-	\item T: Reset transaction state, store new tsx data.
+	\item T: Reset transaction state, store new transaction data.
 	
 	\item T: Generate $(r, R)$
 	
