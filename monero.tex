@@ -54,8 +54,9 @@ Here follows the basic description of the Monero system, environment, and operat
 		\item $D_{i,j} = B + H_s(a \; || \; i \; || \; j)G$
 		\item $C_{i,j} = aD_{i,j}$ 
 	\end{enumerate}
+	\item A single transactions has zero\footnote{coinbase transaction has zero inputs, coin emission from the mining.} or more inputs; one or more outputs.
 	\item $(r, R)$ transaction key-pair. Unique per transaction. 
-	\item $(p, P)$ transaction spend key and output address. Unique per transaction output.
+	\item $(p, P)$ transaction output spend key and an address. Unique per transaction output.
 	\begin{enumerate}
 		\item $p = H_s(aR) + b$, also called ephemeral key. Used for spending.
 		\item $P = pG = H_s(aR)G + B$, public key stored in the transaction output.
@@ -100,9 +101,9 @@ The fresh wallet can be used right-away while the recovered wallet has to rescan
 
 \section{Blockchain scanning}
 
-In order to receive incoming transfers, the blockchain has to be scanned. A~specific operation has to be performed on each transaction with the view-key $a$ to determine whether the transaction is destined to us.
+In order to receive incoming transfers, the blockchain has to be scanned. A~specific operation has to be performed on each transaction output with the view-key $a$ to determine whether the transaction output is destined to us.
 
-For a received transaction Tx we have public keys $\left(R, P\right)$.
+For a received transaction output Tx we have public keys $\left(R, P\right)$.
 The wallet computes: 
 
 \begin{equation}
@@ -110,9 +111,9 @@ B^\prime = P - H_s(aR)G
 \end{equation}
 
 
-If $\left(B^\prime = B\right) \; \vee \; \left(B^\prime \in \{D_{i,j}\}_{i,j}\right)$, then\footnote{$B^\prime$ is equal to the user's $B$ or one of it's sub-addresses} the transaction is destined for us. Otherwise not and can be ignored by the wallet.
+If $\left(B^\prime = B\right) \; \vee \; \left(B^\prime \in \{D_{i,j}\}_{i,j}\right)$, then\footnote{$B^\prime$ is equal to the user's $B$ or one of it's sub-addresses} the transaction output is destined for us. Otherwise not and can be ignored by the wallet.
 
-Computation complexity per transaction: 2x point multiplications, 1x SHA-3, 1x point subtraction.
+Computation complexity per transaction output: 2x point multiplications, 1x SHA-3, 1x point subtraction.
 
 \subsection{Sub-addresses}
 The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j)$, unsigned 32 bit major and minor index \cite{mrl_006_subaddr}.
@@ -124,7 +125,7 @@ The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j
 	
 	\item According to the convention, the master address has indices $(0, 0)$.
 	
-	\item Public key for sending tsx to sub-address: $P = H_s(sC_{i,j})G + D_{i,g}$
+	\item Public key for sending tsx to sub-address: $P = H_s(sC_{i,j})G + D_{i,j}$
 	
 	\item Private spending key: $p = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
 	
@@ -148,7 +149,7 @@ The view-key $a$ is exported to the software wallet. For the receiving, no Trezo
 
 \subsection{Private scanning}
 The view-key $a$ never leaves the device. The device has to be connected
-to the wallet refresh. 
+to perform the wallet refresh. 
 Each new transaction has to be sent to the device for the identification.
 To optimize the performance the following schema is suggested.
 
@@ -160,11 +161,11 @@ To optimize the performance the following schema is suggested.
 
 If the host finds a match with $B^\prime$ it performs additional roundtip to determine the transaction output value for RingCT transactions.
 
-This the most straightworard approach is also suggested in the Ledger proposal \cite{ledger_doc}. The performance can be significantly degraded due to high computation and communication overhead. Although a benchmark would be needed to determine the baseline performance.
+This is the most straightforward approach also suggested in the Ledger proposal \cite{ledger_doc}. The performance can be significantly degraded due to high computation and communication overhead. Although a benchmark would be needed to determine the baseline performance.
 
 In terms of implementation this is rather simple way as only the low level operations are forwarded to the HW wallet leaving most of the original code intact.
 
-Communication complexity: One roundtrip per transaction output. Transaction can have multiple outputs, block contains more transactions so multiple transactions per one block refresh. Request is 64~B in size, response 32~B.
+Communication complexity: One round-trip per transaction output. Transaction can have multiple outputs, block contains more transactions so multiple round-trips per one block refresh. Request is 64~B in size, response 32~B.
 
 \subsubsection{Fast batched scanning}
 During the wallet refresh the wallet loads missing blocks from the full-node RPC server. Each query yields 1000 blocks at maximum. 
@@ -181,7 +182,7 @@ The host wallet sends a batch of transaction outputs to decide the ownership in 
 \end{enumerate}
 Most of the time the Trezor will just return an empty list as there is no new incoming transaction output destined to the account. If the list is not empty then the detailed scanning is performed for each transaction. 
 
-Communication complexity: One message round trip per the batch. The request is $64bt$~B in size. The response is maximally $2bt$~B in size while the expected value is close to zero with overwhelming probability. 
+Communication complexity: One message round-trip per the batch. The request is $64bt$~B in size. The response is maximally $2bt$~B in size while the expected value is close to zero with overwhelming probability. 
 
 \paragraph{Detailed scanning:} In this phase the host wallet sends transaction previously identified as belonging to our account for processing to the Trezor. The whole transaction output is sent to the Trezor so it can extract the amount and the mask from the transaction.
 
@@ -204,7 +205,7 @@ There are several workaround variants for the transaction output identification.
 \end{enumerate}
 
 \subsubsection{Summary}
-Ledger Monero Wallet is using the private blockchain scanning by default \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, it lacks the batching thus we conclude this our improvements are viable alternatives for privacy-sensitive users.
+Ledger Monero Wallet is using the private blockchain scanning by default \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, it lacks the batching thus we conclude that our improvements are viable alternatives for privacy-sensitive users.
 
 \noindent Pros:
 \begin{itemize}
@@ -217,7 +218,7 @@ Ledger Monero Wallet is using the private blockchain scanning by default \cite{l
 \begin{itemize}
 	\item Slower wallet synchronization.
 	\item Wallet restore could be unfeasible as the whole blockchain has to be scanned (or take days to complete). Benchmark is needed for this.
-	\item More code changes in the existing software wallets to implement the batching. The naive approach can be implemented with minimal changes (forwarding $aR$ operation to the device).
+	\item More code changes in the existing software wallets to implement the batching. The naive approach can be implemented with minimal changes (proxying $aR$ operation to the device).
 	\item Inputs and the amounts still visible on the host.
 \end{itemize}
 
@@ -272,7 +273,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item The final Ring signatures on inputs will be performed in the Trezor.
 \end{enumerate}
 
-\paragraph{Ledger comparison.} The Ledge proposal \cite{ledger_doc} goes further with the protocol modification by employing a custom sub-division protocol. Due to hardware nature of the Ledger (about 1k RAM) it is not feasible to compute the transaction in the Ledger in one step so a multi-step approach had to be chosen.
+\paragraph{Ledger comparison.} The Ledger proposal \cite{ledger_doc} goes further with the protocol modification by employing a custom sub-division protocol. Due to hardware nature of the Ledger (about 1k RAM) it is not feasible to compute the transaction in the Ledger in one step so a multi-step approach had to be chosen.
 
 The majority of transaction building process is performed in the software wallet while only the low-level crypto operations with the secret keys are performed in the Ledger.  
 
