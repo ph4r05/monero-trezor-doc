@@ -50,12 +50,16 @@ Here follows the basic description of the Monero system, environment, and operat
 	\item $(a, A)$, $(b, B)$ account (sender) view-key / spend-key pair
 	\item $(A, B)$ the public wallet address, $A=aG$, $B=bG$
 	\item $(C_{i,j}, D_{i,j})$ public sub-address with $i, j$ major minor index
+	\begin{enumerate}
+		\item $D_{i,j} = B + H_s(a \; || \; i \; || \; j)G$
+		\item $C_{i,j} = aD_{i,j}$ 
+	\end{enumerate}
 	\item $(r, R)$ transaction key-pair 
 	\item $(p, P)$ transaction spend key-pair
-	\begin{itemize}
+	\begin{enumerate}
 		\item $p = H_s(aR) + b$, also called ephemeral key. Used for spending.
 		\item $P = pG = H_s(aR)G + B$, public key stored in the transaction.
-	\end{itemize}
+	\end{enumerate}
 	\item $aR$ is often called the derivation (ECDH)
 \end{itemize}
 
@@ -173,11 +177,6 @@ The extension would complicate the transaction creation a bit. The Trezor would 
 Initially only the master wallet will be supported with the future sub-address support in mind \cite{mrl_006_subaddr}.
 
 The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j)$, unsigned 32 bit major and minor index.
-
-\begin{align}
-	D_{i,j} &= B + H_s(a \; || \; i \; || \; j)G \\
-	C_{i,j} &= aD_{i,j} 
-\end{align}
 
 \begin{itemize}
 	\item The $(C_{i,j}, D_{i,j})$ is sub-address with major index $i$ and the minor index $j$.
