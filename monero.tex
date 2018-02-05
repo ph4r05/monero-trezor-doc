@@ -152,9 +152,9 @@ The view-key $a$ is exported to the software wallet. For the receiving, no Trezo
 The view-key $a$ never leaves the device. The device has to be connected
 to perform the wallet refresh. 
 Each new transaction has to be sent to the device for the identification.
-To optimize the performance the following schema is suggested.
+There are several possible variants with varying complexity and performance.
 
-\subsubsection{Naive approach} One roundtrip per transaction to determine the transaction ownership. 
+\subsubsection{Naive approach} One roundtrip per transaction output to determine the ownership. 
 \begin{enumerate}
 	\item Send $(R, P)$ to the Trezor
 	\item Trezor returns $B^\prime$, where $B^\prime = P - H_s(aR)G$
@@ -164,7 +164,7 @@ If the host finds a match with $B^\prime$ it performs additional roundtip to det
 
 This is the most straightforward approach also suggested in the Ledger proposal \cite{ledger_doc}. The performance can be significantly degraded due to high computation and communication overhead. Although a benchmark would be needed to determine the baseline performance.
 
-In terms of implementation this is rather simple way as only the low level operations are forwarded to the HW wallet leaving most of the original code intact.
+In terms of implementation this is rather simple way as only the low level operations are proxied to the HW wallet leaving most of the original code intact.
 
 Communication complexity: One round-trip per transaction output. Transaction can have multiple outputs, block contains more transactions so multiple round-trips per one block refresh. Request is 64~B in size, response 32~B.
 
@@ -188,19 +188,19 @@ Communication complexity: One message round-trip per the batch. The request is $
 \paragraph{Detailed scanning:} In this phase the host wallet sends transaction previously identified as belonging to our account for processing to the Trezor. The whole transaction output is sent to the Trezor so it can extract the amount and the mask from the transaction.
 
 \paragraph{Sub-addresses:}
-Wallet can generate sub-addresses for others to send moneros to. Over the time wallet generates and stores multiple sub-addresses. 
-For a recovered wallet sub-addresses are pre-computed in advance (look-ahead limits $L_M, L_m$)\todo{particular numbers}.
+Wallet can generate independent-looking sub-addresses that are usable for receiving moneros using the same secret keys. Over the time wallet generates and stores multiple sub-addresses. 
+For a recovered wallet sub-addresses are pre-computed in advance, $10k$ in total (look-ahead limits $L_M, L_m$, where $L_M=50$ and $L_m=200$ in the current version).
 This poses a problem for the private BC scanning on the Trezor if the number of sub-addresses is large as the Trezor needs to decide transaction ownership using the sub-addresses set\footnote{The set of size several thousands of address may be difficult to store in the device}.
 
-There are several workaround variants for the transaction output identification. The request remains the same, the batch of $(R_i, P_i)$ per transaction output.
+There are several workaround variants for the transaction output identification. The request remains the same as in the previous protocol. The batch of $(R_i, P_i)$ per transaction output.
 
 \begin{enumerate}
 	\item The Trezor returns a list of results $\left[B^{\prime}_k, B^{\prime}_{k+1}, \dots\right]$ instead of the index list. The decision is then made on the host. Each point has 32 B in size. This variant increases a communication overhead as each transaction output yields $B^{\prime}_i$.
 	
 	\item The Trezor returns a list similarly as in the previous variant with a difference of sending prefix of the fixed size $p_s$
-	$\left[\text{prefix}_{p_s}\left(B^{\prime}_k\right), \text{prefix}_{p_s}\left(B^{\prime}_{k+1}\right), \dots\right]$. Host matches the prefixes with the internal prefix database. If match is found, transaction is sent for detailed scanning (as before). Trezor might return null as a false positive hit.
+	$\left[\text{prefix}_{p_s}\left(B^{\prime}_k\right), \text{prefix}_{p_s}\left(B^{\prime}_{k+1}\right), \dots\right]$. Host matches the prefixes with the internal prefix database. If a match is found, transaction is sent for detailed scanning (as before). Trezor might return null as a false positive hit.
 	
-	\item Trezor builds an internal mapping $\text{prefix}_{p_s}\left(D_{i,j}\right) \rightarrow \left[(i, j), \dots\right]$.
+	\item Trezor builds an internal mapping: $\text{prefix}_{p_s}\left(D_{i,j}\right) \rightarrow \left[(i, j), \dots\right]$.
 	If the Trezor finds a prefix match it computes the full sub-address for all matched indices $(i,j)$ to decide false-positive vs. match. Then it returns a list $\left[(idx_1, (i_1, j_1), (idx_2, (i_2, j_2), \dots)\right]$ with all matched results to the host. 
 	
 \end{enumerate}
@@ -208,24 +208,25 @@ There are several workaround variants for the transaction output identification.
 \subsubsection{Summary}
 Ledger Monero Wallet is using the private blockchain scanning by default \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, it lacks the batching thus we conclude that our improvements are viable alternatives for privacy-sensitive users.
 
+\newpage
 \noindent Pros:
 \begin{itemize}
 	\item The view-key $a$ never leaves the device.
 	\item $a$ cannot be exfiltrated from the compromised host
-	\item The same security-level as a competitor.
+	\item The same security-level as the competitor.
 \end{itemize}
 
 \noindent Cons:
 \begin{itemize}
 	\item Slower wallet synchronization.
-	\item Wallet restore could be unfeasible as the whole blockchain has to be scanned (or take days to complete). Benchmark is needed for this.
-	\item More code changes in the existing software wallets to implement the batching. The naive approach can be implemented with minimal changes (proxying $aR$ operation to the device).
+	\item Wallet restore could be infeasible as the whole blockchain has to be scanned (or take hours to complete). Benchmark is needed for this.
+	\item More code changes required in the existing software wallets to implement the batching. The naive approach can be implemented with minimal changes (proxying $aR$ operation to the device).
 	\item Inputs and the amounts still visible on the host.
 \end{itemize}
 
 \subsubsection{Extension} In order to increase the privacy we could hide all transaction inputs on the hosts, to protect the balance value. The balance would be visible only on the Trezor device on request.
 
-The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction (sending Moneros). The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. 
+The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction (sending Moneros). The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. Challenges: outputs storage (available flash memory on Trezor vs. encryption when stored on host), how are accessed on the host - protect from access pattern leakage.
 
 
 \section{Sending a transaction}
@@ -249,9 +250,8 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item For each transaction output $T_{out}$:
 	\begin{enumerate}
 		\item Compute the range proof. Borromean or Bulletproof \cite{monero_1098, borromean, Bnz2017BulletproofsSP}.
-		\item Mask output amount and the mask in \verb|ecdhInfo| with the secret $H_s(aR_{in})$ denoted the amount key.
-		\item Compute the output commitments:\\ 
-		$C = a_iG + xmrH$, where $a_i$ is a randomly generated mask.
+		\item Mask the output amount and the commitment mask in the \verb|ecdhInfo| with the secret $H_s(aR_{in})$ denoted as the amount key.
+		\item Compute the output commitments: $C = a_mG + xmrH$, where $a_m$ is a randomly generated commitment mask.
 		\item Compute Ring-CT MG for each $T_{in}$ (real + fake inputs).
 	\end{enumerate}
 	\item Submit the transaction.
@@ -259,11 +259,11 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 
 \paragraph{Observations:}
 \begin{enumerate}
-	\item The transaction key pair $(r,R)$ should be generated in the Trezor to make sure the challenge is random and not re-used (attacks by crafting $r$ on the host to leak the information). 
+	\item The transaction key pair $(r,R)$ should be generated in the Trezor to make sure the it is random and not re-used (attacks by crafting $r$ on the host to leak the information). 
 	
-	\item The $T_{in}$ processing requires private keys - has to be done in Trezor. Trezor could display sum of all inputs. The transaction can be spent with the $x_{in}$, must not be leaked to the host.
+	\item The $T_{in}$ processing requires private keys - has to be done in Trezor. Trezor could display sum of all inputs. The transaction can be spent with the $x_{in}$, thus it must not be leaked to the host.
 	
-	\item The change address has to be generated in the Trezor to avoid change address spoofing by the compromised host (sending a huge change to the attacker in the transaction confirmed by the user).
+	\item The change address has to be generated in the Trezor to avoid the change address spoofing by the compromised host (sending a huge change to the attacker in the transaction confirmed by the user).
 	
 	\item Each transaction output $T_{out}$ and the monero amount has to be manually confirmed on the Trezor to finish the transaction processing.
 	
@@ -274,7 +274,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item The final Ring signatures on inputs will be performed in the Trezor.
 \end{enumerate}
 
-\paragraph{Ledger comparison.} The Ledger proposal \cite{ledger_doc} goes further with the protocol modification by employing a custom sub-division protocol. Due to hardware nature of the Ledger (about 1k RAM) it is not feasible to compute the transaction in the Ledger in one step so a multi-step approach had to be chosen.
+\paragraph{Ledger comparison.} The Ledger proposal \cite{ledger_doc} goes further with the protocol modification by employing a custom sub-division protocol. Due to a hardware nature of the Ledger Nano S (about 1k RAM) it is not feasible to compute the transaction in the Ledger in one step so a multi-step approach had to be chosen.
 
 The majority of transaction building process is performed in the software wallet while only the low-level crypto operations with the secret keys are performed in the Ledger.  
 
@@ -286,7 +286,8 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 	\item Rather simple implementation. The software wallet performs the heavy-lifting while some of the 
 	low-level crypto calls are proxied to the Ledger. The sealing is somehow format preserving encryption so no data structure augmentation is needed. Code modifications are smaller.
 	\item Device holds the minimal transaction state.
-	\item Abstract device implementation, proposed protocol. We could alleviate an existing PR\cite{ledger_pr} in the Monero wallet.
+	\item Abstract device interface in the official Monero code. They plan to support more HW devices.
+	\item The protocol is already designed. We could alleviate an existing PR\cite{ledger_pr} in the Monero wallet.
 \end{itemize}
 
 \noindent Cons:
@@ -366,12 +367,15 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 	
 	\item $T \rightarrow H$: Return the sealed transaction $T_{seal}$.
 	
-	\item $H \rightarrow T$: Request the unsealed transaction.
+	\item $H \rightarrow T$: Request to unsealed the transaction $T_{seal}$.
 	\begin{enumerate}
-		\item $T$: Ask the user for a confirmation.
 		\item $T$: Verify if $tsx_{hmac} = \text{HMAC}(T_{seal}, k_{hmac}, \text{SHA-256})$.
+		
+		\item $T$: Ask the user for a confirmation.
+
 		\item $T$: Decrypt $T_{seal}$ transaction fields.
 	\end{enumerate}
+
 	\item $T \rightarrow H$: The valid transaction $T_{clear}$.
 	
 \end{enumerate}
@@ -380,16 +384,16 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 
 \section{Trezor.io}
 
-The more complex integration scenario description follows.
+The more complex integration scenario - trezor.io software wallet.
 \begin{enumerate}
 	\item Chrome plugin - communication channel to the Trezor device. 
 	JS interface to the Trezor. Minimal changes, add new Monero-related messages.
 	
-	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). A user can run his local node. The node is set in the trezor.io menu. By default, there can be implicit node owned by the SatoshiLabs / Monero open nodes. So far it seems we don't need blockchain explorer (such as Insight for BTC). The RPC interface of the monero full-node seems enough for the initial version.
+	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). A user can run his local node. The node is set in the trezor.io menu. By default, there can be an implicit node owned by the SatoshiLabs or Monero open nodes. So far it seems we don't need blockchain explorer (such as Insight for BTC). The RPC interface of the monero full-node seems enough for the initial version.
 	
-	\item Basic Monero JS wallet for Trezor.io. Minimalistic for a start. Simple receive + sending (spending proofs, etc. can be added later or by the community). 
+	\item Basic Monero JS wallet for Trezor.io. Minimalistic for a start. Simple receive + send (spending proofs, etc. can be added later or by the community). 
 	
-	\item Trezor.io wallet stores transfers, does transaction scanning, wallet refresh. Range proof, bulletproof could be implemented on the Trezor directly for this case. 
+	\item Trezor.io wallet stores transfers, does transaction scanning, wallet refresh, communicates with the full-node (refresh, fake get outs). Range proof could be implemented in the Trezor directly for this case. 
 	
 	\item Implement Monero crypto in JS. Basic curve ed25519 operations, SHA-3 based $H_s(), H_p()$.
 	
