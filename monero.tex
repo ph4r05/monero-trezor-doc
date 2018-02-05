@@ -20,7 +20,8 @@
 
 %opening
 \title{Monero wallet Trezor integration draft v0.1}
-\author{Du\v{s}an Klinec}
+\author{Du\v{s}an Klinec \\{dusan.klinec@gmail.com}}
+
 
 \begin{document}
 	
@@ -357,8 +358,8 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 
 		\item $T$: Compute output commitments
 		
-		\item $T$: Perform RingCT signatures on inputs
-		
+		\item $T$: Perform RingCT signatures on inputs $T_{in}$ (signs also the transaction prefix (inputs, outs, tsx pub key $R$, outputs range proofs, commitments))
+	
 		\item $T$: Signature fields are encrypted with $k_{enc}$ using AES-256 in CBC mode with $IV = H(r \; || \; \text{fieldIdx})$
 		
 		\item $T$: Compute the HMAC to protect transaction integrity and store it to the state.
