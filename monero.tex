@@ -354,10 +354,10 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 	\item $H \rightarrow T$: Request to get the sealed transaction  $T_{seal}$.
 	\begin{enumerate}
 		\item $T$: Transaction sanity check
+
+		\item $T$: Compute output commitments
 		
 		\item $T$: Perform RingCT signatures on inputs
-		
-		\item $T$: Compute output commitments
 		
 		\item $T$: Signature fields are encrypted with $k_{enc}$ using AES-256 in CBC mode with $IV = H(r \; || \; \text{fieldIdx})$
 		
