@@ -112,7 +112,7 @@ B^\prime = P - H_s(aR)G
 \end{equation}
 
 
-If $\left(B^\prime = B\right) \; \vee \; \left(B^\prime \in \{D_{i,j}\}_{i,j}\right)$, then\footnote{$B^\prime$ is equal to the user's $B$ or one of it's sub-addresses} the transaction output is destined for us. Otherwise not and can be ignored by the wallet.
+If $\left(B^\prime = B\right) \; \vee \; \left(B^\prime \in \{D_{i,j}\}_{i,j}\right)$, then\footnote{$B^\prime$ is equal to the user's $B$ or one of it's sub-addresses} the transaction output is destined for us. Otherwise it can be ignored by the wallet.
 
 Computation complexity per transaction output: 2x point multiplications, 1x SHA-3, 1x point subtraction.
 
@@ -126,7 +126,7 @@ The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j
 	
 	\item According to the convention, the master address has indices $(0, 0)$.
 	
-	\item Public key for sending tsx to sub-address: $P = H_s(sC_{i,j})G + D_{i,j}$
+	\item Public key for sending tsx to sub-address: $P = H_s(rC_{i,j})G + D_{i,j}$
 	
 	\item Private spending key: $p = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
 	
