@@ -39,8 +39,8 @@ Here follows the basic description of the Monero system, environment, and challe
 
 \begin{itemize}
 	\item $G$ is a base point of the curve $E$ (ed25519) of the order $l$
-	\item $H_p : \{0,1\}^* \rightarrow E$, hash function to curve point
-	\item $H_s : \{0,1\}^* \rightarrow [1, l-1]$, hash function to the scalar
+	\item $H_p : \{0,1\}^* \rightarrow E$, hash function to a curve point
+	\item $H_s : \{0,1\}^* \rightarrow [1, l-1]$, hash function to a scalar
 	\item $H = H_p(G)$, a point on the curve $E$. It holds $H=hG$, $h$ is unknown
 	
 \end{itemize}
@@ -50,7 +50,7 @@ Here follows the basic description of the Monero system, environment, and challe
 \begin{itemize}
 	\item $(a, A)$, $(b, B)$ account (sender) view-key / spend-key pair
 	\item $(A, B)$ the public wallet address, $A=aG$, $B=bG$
-	\item $(C_{i,j}, D_{i,j})$ public sub-address with $i, j$ major minor index
+	\item $(C_{i,j}, D_{i,j})$ public sub-address with $i, j$ major minor index resp.
 	\begin{enumerate}
 		\item $D_{i,j} = B + H_s(a \; || \; i \; || \; j)G$
 		\item $C_{i,j} = aD_{i,j}$ 
@@ -59,7 +59,7 @@ Here follows the basic description of the Monero system, environment, and challe
 	\item $(r, R)$ transaction key-pair. Unique per transaction. 
 	\item $(p, P)$ transaction output spend key and an address. Unique per transaction output.
 	\begin{enumerate}
-		\item $p = H_s(aR) + b$, also called ephemeral key. Used for spending.
+		\item $p = H_s(aR) + b$, also called the ephemeral key. Used for spending.
 		\item $P = pG = H_s(aR)G + B$, public key stored in the transaction output.
 	\end{enumerate}
 	\item $aR$ is also called the derivation (ECDH)
