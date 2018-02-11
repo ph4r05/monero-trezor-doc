@@ -5,6 +5,7 @@
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{amssymb}
+\usepackage{graphicx}
 \usepackage[british,UKenglish,USenglish,english,american]{babel}
 
 % TODO packages
@@ -34,6 +35,24 @@
 \section{Introduction}
 Here follows the basic description of the Monero system, environment, and challenges that need to be addressed to integrate Monero wallet to the Trezor.
 
+Trezor is a hardware second factor, secure token storing wallet secrets in a secure way. 
+The trezor is connected to the host running the software wallet communicating with the Trezor. The software wallet is connected to the full Monero which has stored the whole blockchain. The software wallet is operated by an user, the wallet owner. The wallet shows received and sent transactions, current balance and is used to enter a new transaction to pay. The outgoing transaction has to be confirmed on the Trezor.
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.8\textwidth, angle=0]{trezord.pdf}
+	\caption{Environment}
+\end{figure}
+
+
+\subsection{Attacker model}
+
+Trezor device attacker model is the same as with other crypto currencies (e.g., physical device security, memory forensics protection, side channel analysis, fault induction).
+
+The host and the full node are assumed to be fully compromised. Attacker can start multiple instances of protocols, interleave messages, send, replay, delay or drop any messages to/from the Trezor. Attackers goal is to spend user-unconfirmed transaction to his advantage. As the software wallet is operated from the host there are naturaly no privacy guarantees on the host. Compromised host sees all transactions.
+
+In a weaker setting only the full node is assumed to be fully compromised. The goal of an attacker on the full node is either to spend a victim monero or to learn information about user received or sent transactions (e.g., transaction ovnership, balance, outgoing transaction addresses).
+ 
 \subsection{Definitions}
 
 \paragraph{Basic system}
@@ -209,7 +228,6 @@ There are several workaround variants for the transaction output identification.
 \subsubsection{Summary}
 Ledger Monero Wallet is using the private blockchain scanning by default \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, it lacks the batching thus we conclude that our improvements are viable alternatives for privacy-sensitive users.
 
-\newpage
 \noindent Pros:
 \begin{itemize}
 	\item The view-key $a$ never leaves the device.
@@ -253,8 +271,8 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 		\item Compute the range proof. Borromean or Bulletproof \cite{monero_1098, borromean, Bnz2017BulletproofsSP}.
 		\item Mask the output amount and the commitment mask in the \verb|ecdhInfo| with the secret $H_s(aR_{in})$ denoted as the amount key.
 		\item Compute the output commitments: $C = a_mG + xmrH$, where $a_m$ is a randomly generated commitment mask.
-		\item Compute Ring-CT MG for each $T_{in}$ (real + fake inputs).
 	\end{enumerate}
+	\item Compute Ring-CT MG for each $T_{in}$ (real + fake inputs).
 	\item Submit the transaction.
 \end{enumerate}
 
@@ -301,9 +319,11 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 
 The naive and the most straightforward variant is to replicate Ledger design. On the other hand, the design is quite immature and will be subject to changes with high probability. I am also not convinced by its security. As we have more resources on Trezor, I propose to do the whole transaction signature in the Trezor.
 
-The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in the process of assembling the inputs and the fee computation. Without a need to redesign the software wallet logic we propose to generate multiple transactions similarly while only the one being sent and confirmed by the user will be valid. 
+\subsubsection{Multiple transaction candidates}
 
-For the sake of preserving the same logic, Trezor builds pending transactions which are sealed with the format preserving encryption with per-transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields, but instead of valid signatures, it contains their encrypted versions. 
+The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in the process of assembling the inputs, outputs and the fee computation (e.g., \emph{wallet2.cpp:6940}\;\verb|goto skip_tx|). Without a need to redesign the software wallet logic we propose to generate multiple transactions similarly while only the one being sent and confirmed by the user will be valid - in order to do minimal source modifications in the official Monero code which should make PR merge more easy. 
+
+For the sake of preserving the same logic and minimal modifications, Trezor builds pending transactions which are sealed with the format preserving encryption with per-transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields which enables to compute the fee exactly. But instead of valid signatures, it contains their encrypted versions. This form leaks no secret information thus the sealed transaction is useless without unsealing.  
 
 Once the algorithm picks the correct transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction content is unsealed (decrypted) and the valid transaction is returned. After that, the transaction state is reset.
 
@@ -342,17 +362,17 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 		\item $T$: Generate HMAC key $k_{hmac} = H\left(\text{"hmac"} \; || \; k_{mst}\right)$
 	\end{enumerate}
 	
-	\item $H \rightarrow T$: Set inputs to spend + loaded fakes.
+	\item $H \rightarrow T$: Set inputs to spend + loaded fakes $T_{in}$.
 	\begin{enumerate}
 		\item $T$: For each input: compute derivation, ephemeral spending key $x_{in}$, key image $I_{in}$.
 	\end{enumerate}
 	
-	\item $H \rightarrow T$: Set range proof for $T_{out}$. Optional, can be computed in the Trezor, may be slower. Useful for Trezor.io (no JS implementation needed).
+	\item $H \rightarrow T$: Set range proofs \emph{asig} for $T_{out}$. Optional, can be computed in the Trezor, may be slower. Useful for Trezor.io (no JS implementation needed).
 	\begin{enumerate}
-		\item $T$: Store the range proof.
+		\item $T$: Store the range proofs.
 	\end{enumerate}
 	
-	\item $H \rightarrow T$: Request to get the sealed transaction  $T_{seal}$.
+	\item $H \rightarrow T$: Request the sealed transaction $T_{seal}$
 	\begin{enumerate}
 		\item $T$: Transaction sanity check
 
