@@ -319,7 +319,7 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 
 The naive and the most straightforward variant is to replicate Ledger design. On the other hand, the design is quite immature and will be subject to changes with high probability. I am also not convinced by its security. As we have more resources on Trezor, I propose to do the whole transaction signature in the Trezor.
 
-\subsubsection{Multiple transaction candidates}
+\subsubsection{Transaction assembly}
 
 The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in the process of assembling the inputs, outputs and the fee computation (e.g., \emph{wallet2.cpp:6940}\;\verb|goto skip_tx|). Without a need to redesign the software wallet logic we propose to generate multiple transactions similarly while only the one being sent and confirmed by the user will be valid - in order to do minimal source modifications in the official Monero code which should make PR merge more easy. 
 
@@ -334,11 +334,13 @@ Once the algorithm picks the correct transaction to send the user has to confirm
 %    \item Final transaction send.    
 %\end{enumerate}
 
-\subsubsection{Protocol description} The first draft of the high level protocol description.
-All signatures are performed in the Trezor on the set of spending inputs in one step. Output range-proofs are offloaded to the host.
+\subsubsection{High-level protocol description} 
+All signatures are performed in the Trezor on the set of spending TXO in one step. Output rangeproofs are offloaded to the host as explained below.
 
-\; 
-\noindent The Trezor stores a transaction state:
+Let $H$ be a cryptographic hash function $H : \{0,1\}^* \rightarrow \{0,1\}^{256}$, preferably Keccak-256 which is already used in the Monero. HMAC uses the hash function $H$. Binary operator $||$ is a binary concatenation.
+
+\paragraph{State:}
+Trezor holds a transaction state:
 \begin{itemize}
 	\item Global transaction counter $c_{tsx}$
 	\item Transaction data (inputs, outputs, $(r,R)$, range proofs, signatures, $\dots$)
@@ -346,7 +348,7 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 	\item Sealed transaction HMAC value $tsx_{hmac}$
 \end{itemize}
 
-\noindent The protocol:
+\paragraph{Protocol description:}
 \begin{enumerate}
 	\item $H \rightarrow T$: $TsxData = \left[\left(T_{out,i}, \text{amount}_i, \text{payment\_id}_i\right), \dots \right]$. Host sends the initial transaction data $TsxData$ to the Trezor by calling\\ InitTransaction$\left(TsxData\right)$.
 	
@@ -355,7 +357,7 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 		
 		\item $T$: Generate $(r, R)$, transaction key-pair.
 		
-		\item $T$: Increment Trezor transaction counter $c_{tsx}$, generate transaction master key $k_{mst} = H(TsxData, r, c_{tsx})$.
+		\item $T$: Increment Trezor transaction counter $c_{tsx}$, generate transaction master key $k_{mst} = H(TsxData \; || \; r \; || \; c_{tsx})$.
 		
 		\item $T$: Generate base encryption key $k_{enc} = H\left(\text{"enc"} \; || \; k_{mst}\right)$
 		
@@ -378,19 +380,19 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 
 		\item $T$: Compute output commitments
 		
-		\item $T$: Perform RingCT signatures on inputs $T_{in}$ (signs also the transaction prefix (inputs, outs, tsx pub key $R$, outputs range proofs, commitments))
+		\item $T$: Perform RingCT signatures on inputs $T_{in}$ (signs also the transaction prefix (inputs, outs, tsx pub key $R$, outputs range proofs, commitments)) with the $x_{in}$ and the key image $I_{in}$.
 	
-		\item $T$: Signature fields are encrypted with $k_{enc}$ using AES-256 in CBC mode with $IV = H(r \; || \; \text{fieldIdx})$
+		\item $T$: Encrypt signature fields with $k_{enc}$ using AES-256 in CBC mode with $IV = H(r \; || \; \text{fieldIdx})$
 		
-		\item $T$: Compute the HMAC to protect transaction integrity and store it to the state.
-		$tsx_{hmac} = \text{HMAC}(T_{seal}, k_{hmac}, \text{SHA-256})$
+		\item $T$: Compute the HMAC to protect transaction integrity and store it to the transaction state.
+		$tsx_{hmac} = \text{HMAC}_{k_{hmac}}(T_{seal})$
 	\end{enumerate} 
 	
 	\item $T \rightarrow H$: Return the sealed transaction $T_{seal}$.
 	
 	\item $H \rightarrow T$: Request to unseal the transaction $T_{seal}$.
 	\begin{enumerate}
-		\item $T$: Verify if $tsx_{hmac} = \text{HMAC}(T_{seal}, k_{hmac}, \text{SHA-256})$.
+		\item $T$: Verify if $tsx_{hmac} = \text{HMAC}_{k_{hmac}}(T_{seal})$.
 		
 		\item $T$: Ask the user for a confirmation.
 
@@ -406,14 +408,14 @@ All signatures are performed in the Trezor on the set of spending inputs in one 
 
 
 \subsubsection{Rangeproof offloading}
-The rangeproof offloading is mainly motivated by the fact it makes up the significant portion of the transaction (per output) in size, its computationally expensive and not using any account or transaction secrets. Offloading thus poses no additional security risk in the current attacker model. The idea is demonstrated mainly on the Borromean range proofs as they are big in size but it generalizes also to the Bulletproof (same interface). 
+The rangeproof offloading is mainly motivated by the fact it makes up the significant portion of the transaction (per output) in size, it is computationally expensive and not using any account or transaction secrets. Offloading thus poses no additional security risk in the current attacker model. The idea is demonstrated mainly on the Borromean range proofs as they are big in size but it generalizes also to the Bulletproof (same interface). 
 
 The rangeproof is a zero-knowledge proof that the amount lies in the interval $[0, 2^{64}-1]$ without revealing the amount value\footnote{To protect from a negative overflow which would generate new Monero - required part of confidential transaction mechanism using Pedersen commitments}. Intuitivelly, the invalid rangeproof causes only the transaction rejection by the full node without compromising the security.
 
 Rangeproof is generated by \verb|proveRange()| in \emph{rtcSigs.cpp:298}. The only input value to the function is \verb|const xmr_amount & amount|, the amount. The function returns \verb|rangeSig| structure with the range proof, the mask and the amount commitment. 
 
 \paragraph{Implementation notes.}
-The first part of the \verb|proveRange()| function generates random $a_i$ values and $C_i$ which are further used to generate rangeproof signatures. These values will be generated in Trezor to have random values under our control as $a_i$ are used as a mask later. We need to protect the amount and the mask from tampering.
+The first part of the \verb|proveRange()| function generates random $a_i$ values and $C_i$ which are further used to generate rangeproof signatures. These values will be generated in Trezor to have random values under our control as $a_i$ are used as a mask later. We need to protect the amount commitment and the mask from tampering.
 
 \paragraph{Sending a transaction.}
 Let's assume the attacker generates an invalid rangeproof or a rangeproof for invalid amount value. The rangeproof is included in the overal message hash which sender generates ringCT signatures for but besides that the rangeproof values are not used in the transaction sending process. Thus invalid rangeproof does not affect the value commitments. 
@@ -439,23 +441,29 @@ The more complex integration scenario - trezor.io software wallet.
 	
 	\item Trezor.io wallet stores transfers, does transaction scanning, wallet refresh, communicates with the full-node (refresh, fake get outs). Range proof could be implemented in the Trezor directly for this case. 
 	
-	\item Implement Monero crypto in JS. Basic curve ed25519 operations, SHA-3 based $H_s(), H_p()$.
+	\item Implement Monero crypto in JS. Basic Monero-specific ed25519 operations, SHA-3 based $H_s(), H_p()$.
 	
 \end{enumerate}
 
 
-\section{Implementation - simple case}
+\section{Implementation}
 
-\improvement[inline]{TODO: Finish}
+%\improvement[inline]{TODO: Finish}
 
-\noindent TBD. Depends on the further requirements.
+\noindent TBD. Depends on the further requirements.\\
+
+The implementation process is incremental, start with MVP, minimal viable product. Later extend with more features. MVP has two basic features: 1) receive transactions, view balance, 2) send transaction. 
 
 \begin{enumerate}
-	\item Incremental, start with MVP, minimal viable product.
-	\item Tresor basic Monero related crypto, serialization.
-	\item Trezor HW device in Wallet2
-	\item Extending tsx generation, move the majority to the Trezor.
-	
+	\item Trezor basic Monero-related ed25519 crypto
+	\item Transaction specific crypto-material derivation
+	\item Transaction sealing primitives
+	\item Monero binary serialization
+	\item Monero specific messages for Trezor-Host interface
+	\item RingCT and basic transaction primitives
+	\item Monero transaction assembly
+	\item Extend simplewallet to support Trezor
+	\item Monero wallet for Trezor.io 
 \end{enumerate}
 
 
