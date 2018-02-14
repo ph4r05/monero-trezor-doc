@@ -440,7 +440,8 @@ WLOG assume we are using simple RCT\footnote{Non-simple RCT is a bit smaller in 
 \paragraph{Memory requirements.} 
 The range proof consists of Borromean signature and $C_i$ array of 32~B commitments with 64 elements, one for each bit in the amount. The Borromean signature contains: 2x64 element arrays of 32~B keys, \emph{s0}, \emph{s1} and one 32~B key. In total the range proof with commitment takes 6176~B in the raw form per one transaction output.
 
-\paragraph{Bulletproof range proof.} The offloading mechanism is very similar to the Borromean range proof. The random mask is generated in the Trezor. The commitment is recomputed in the Trezor to make sure it was not tampered with (simple computation step with amount and mask).
+\paragraph{Bulletproof range proof.} The offloading mechanism is very similar to the Borromean range proof. The random mask is generated in the Trezor. The commitment is recomputed in the Trezor to make sure it was not tampered with (simple computation step with amount and mask). 
+However by switching to Bulletproof the range proof size for 2 outputs is reduced roughly from 12~352~B to 2~500~B as Bulletproof signs all outputs with single signature. The size increase only logarithmically with respect to the number of output transactions. The offloading is not required with Bulletproof if the number of output transactions is small \cite{Bnz2017BulletproofsSP}.
 
 
 
