@@ -227,7 +227,8 @@ There are several workaround variants for the transaction output identification.
 \end{enumerate}
 
 \subsubsection{Summary}
-Ledger Monero Wallet is using the private blockchain scanning by default \cite{ledger_doc}, which is slower in terms of computations and bandwidth. Moreover, it lacks the batching thus we conclude that our improvements are viable alternatives for privacy-sensitive users.
+Ledger Monero Wallet is using the private blockchain scanning one transaction at a time \cite{ledger_doc}. Without further optimizations this can be rather slow for the wallet refresh in terms of computations and bandwidth.
+We conclude that our improvements (batching) are viable alternatives for privacy-sensitive users.
 
 \noindent Pros:
 \begin{itemize}
