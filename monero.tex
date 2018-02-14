@@ -436,6 +436,9 @@ In the attacker model the host already knows the amount as a legitimate user use
 In the attacker model the host can already tamper the range signatures thus offloading does not make any difference.
 WLOG assume we are using simple RCT\footnote{Non-simple RCT is a bit smaller in size while usable only if the transaction is of certain form. This alternative does not affect the range proof.}. The range proof verification function is \verb|verRange()| which is called only in the \\\verb|verRctSimple()|. In the current version only full-nodes do RCT verification during the refresh, not the wallet. If the transaction verification fails, it is ignored.
 
+\paragraph{Memory requirements.} 
+The range proof consists of Borromean signature and $C_i$ array of 32~B commitments with 64 elements, one for each bit in the amount. The Borromean signature contains: 2x64 element arrays of 32~B keys, \emph{s0}, \emph{s1} and one 32~B key. In total the range proof with commitment takes 6176~B in the raw form per one transaction output.
+
 \paragraph{Bulletproof range proof.} The offloading mechanism is very similar to the Borromean range proof. The random mask is generated in the Trezor. The commitment is recomputed in the Trezor to make sure it was not tampered with (simple computation step with amount and mask).
 
 
