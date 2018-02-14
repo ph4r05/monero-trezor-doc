@@ -463,12 +463,12 @@ The ring-CT signature per one TXO contains a 32~B key field \emph{cc} and the ma
 
 \paragraph{Protocol subdivision }
 
-Obviously, the one-step transaction construction may not suffice for large transactions with many inputs and large mixins. Thus in order to support arbitrarily large transactions the subdivision has to be employed similarly to the Ledger. The proposal is to implement all-in-one approach first, supporting only smaller transactions. In the second phase the subdivided protocol will be implemented supporting arbitrarily large transactions. The subdivisiou should undergo a security review before being deployed to the production. In the subdivided approach we will not stick to the Ledger proposal as we can go few levels up compared to the relativelly low-level approach of the Ledger subdivision. E.g. compute the whole ringCT for one input in the Trezor. The minimal division unit would be one input/output.
+Obviously, the one-step transaction construction may not suffice for large transactions with many inputs and large mixins. Thus in order to support arbitrarily large transactions the subdivision has to be employed similarly to the Ledger. The proposal is to implement all-in-one approach first, supporting only smaller transactions. In the second phase the subdivided protocol will be implemented supporting arbitrarily large transactions. The subdivisiou should undergo a security review before being deployed to the production. In the subdivided approach we will not stick to the Ledger proposal as we can go few levels up compared to the relativelly low-level approach of the Ledger subdivision. E.g., compute the whole ringCT for one input in the Trezor. The minimal division unit would be one input/output.
 
 \paragraph{Memory consumption example:}
-If the transaction has 30 TXOs with mixin set to 20 the overall memory requirements for inputs are 41~280~B, output is 39~360~B. This is the minimal memory needed to do the computation. Signature itself consumes roughly aroung 128~kB of memory per TXO.
+If the transaction has 30 TXOs with mixin set to 20 the overall memory requirements for inputs are 41~280~B, output is 39~360~B. This is the minimal memory needed to do the computation. Signature itself consumes roughly aroung 128~B of memory per TXO.
 
-\subsection{Signature details}
+\subsection{RingCT MLSAG Signature details}
 
 RingCT signature over the input from $T_{in}$ signs besides the inputs also the hash of the message binding all transaction data to the input being signed. A part of the hash input string is the \emph{transaction\_prefix}:
 
