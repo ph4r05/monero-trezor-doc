@@ -20,7 +20,7 @@
 \newcommandx{\thiswillnotshow}[2][1=]{\todo[disable,#1]{#2}}
 
 %opening
-\title{Monero wallet Trezor integration draft v0.1}
+\title{Monero wallet Trezor integration draft v0.2}
 \author{Du\v{s}an Klinec \\{dusan.klinec@gmail.com}}
 
 
@@ -247,6 +247,9 @@ Ledger Monero Wallet is using the private blockchain scanning by default \cite{l
 
 The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction (sending Moneros). The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. Challenges: outputs storage (available flash memory on Trezor vs. encryption when stored on host), how are accessed on the host - protect from access pattern leakage.
 
+\subsection{Updates}
+
+\paragraph{12\textsuperscript{th} Feb 2017:} Performance version is chosen for the blockchain scanning. Privacy version can be implemented later.
 
 \section{Sending a transaction}
 Assume we are going to send $xmr$ Moneros to the address $(A_d, B_d)$
