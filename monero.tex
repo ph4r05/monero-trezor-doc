@@ -247,7 +247,7 @@ We conclude that our improvements (batching) are viable alternatives for privacy
 
 \subsubsection{Extension} In order to increase the privacy we could hide all transaction inputs on the hosts, to protect the balance value. The balance would be visible only on the Trezor device on request.
 
-The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction (sending Moneros). The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. Challenges: outputs storage (available flash memory on Trezor vs. encryption when stored on host), how are accessed on the host - protect from access pattern leakage.
+The extension would complicate the transaction creation a bit. The Trezor would have to work with the (possibly all) inputs when creating a new transaction. The whole transaction would have to be built in the Trezor. This is rather complicated in terms of implementation. Possible challenges: outputs storage (available flash memory on Trezor vs. encryption when stored on host), secure memory access - protect from access pattern leakage.
 
 \subsection{Updates}
 
