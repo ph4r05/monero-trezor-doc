@@ -306,21 +306,24 @@ The sensitive sub-results are returned sealed to the software wallet, encrypted 
 \noindent Pros:
 \begin{itemize}
 	\item Rather simple implementation. The software wallet performs the heavy-lifting while some of the 
-	low-level crypto calls are proxied to the Ledger. The sealing is somehow format preserving encryption so no data structure augmentation is needed. Code modifications are smaller.
+	low-level crypto calls are proxied to the Ledger. The sealing is format preserving so no data structures augmentation is needed. Code modifications are small.
 	\item Device holds the minimal transaction state.
-	\item Abstract device interface in the official Monero code. They plan to support more HW devices.
+	\item Abstract device interface in the official Monero code. The plan is to support more HW devices.
 	\item The protocol is already designed. We could alleviate an existing PR\cite{ledger_pr} in the Monero wallet.
 \end{itemize}
 
 \noindent Cons:
 \begin{itemize}
-	\item Sound security analysis is missing. 
+	\item Protocol design is still evolving. Has not been merged yet.
+	\item Sound security analysis of the protocol subdivision is missing. 
 	\item The partial protocol can be vulnerable e.g., to change address attacks.
 \end{itemize}
 
 \subsection{Signing protocol}
 
-The naive and the most straightforward variant is to replicate Ledger design. On the other hand, the design is quite immature and will be subject to changes with high probability. I am also not convinced by its security. As we have more resources on Trezor, I propose to do the whole transaction signature in the Trezor.
+The naive and the most straightforward variant is to adapt the Ledger design. On the other hand, the design is rather new and could be subject to further changes with high probability in the near future. 
+
+Trezor has more resources available for the same job so I suggest to do as maximum as possible on the Trezor to avoid potential vulnerabilities from the protocol subdivision. 
 
 \subsubsection{Transaction assembly}
 
