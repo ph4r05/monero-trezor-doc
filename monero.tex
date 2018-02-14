@@ -37,7 +37,7 @@
 Here follows the basic description of the Monero system, environment, and challenges that need to be addressed to integrate Monero wallet to the Trezor.
 
 Trezor is a hardware second factor, secure token storing wallet secrets in a secure way. 
-The trezor is connected to the host running the software wallet communicating with the Trezor. The software wallet is connected to the full Monero which has stored the whole blockchain. The software wallet is operated by an user, the wallet owner. The wallet shows received and sent transactions, current balance and is used to enter a new transaction to pay. The outgoing transaction has to be confirmed on the Trezor.
+The trezor is connected to the host running the software wallet communicating with the Trezor. The software wallet is connected to the full Monero which has stored the whole blockchain. The software wallet is operated by a user, the wallet owner. The wallet shows received and sent transactions, current balance and is used to enter payment information for a new transaction. The outgoing transaction has to be confirmed by user on the Trezor.
 
 \begin{figure}[h]
 	\centering
@@ -50,9 +50,9 @@ The trezor is connected to the host running the software wallet communicating wi
 
 Trezor device attacker model is the same as with other crypto currencies (e.g., physical device security, memory forensics protection, side channel analysis, fault induction).
 
-The host and the full node are assumed to be fully compromised. Attacker can start multiple instances of protocols, interleave messages, send, replay, delay or drop any messages to/from the Trezor. Attackers goal is to spend user-unconfirmed transaction to his advantage. As the software wallet is operated from the host there are naturaly no privacy guarantees on the host. Compromised host sees all transactions.
+The host and the full node are assumed to be fully compromised. Attacker can start multiple instances of protocols, interleave protocol runs, send, replay, delay or drop any messages to/from the Trezor. Attackers goal is to spend user-unconfirmed transaction to his advantage or to cause any damage to the user. As the software wallet is operated from the host there are naturaly no privacy guarantees on the host. Compromised host sees all transactions and can naturally block some messages, e.g., incoming transactions. 
 
-In a weaker setting only the full node is assumed to be fully compromised. The goal of an attacker on the full node is either to spend a victim monero or to learn information about user received or sent transactions (e.g., transaction ovnership, balance, outgoing transaction addresses).
+In a weaker setting only the full node is assumed to be fully compromised. The goal of an attacker on the full node is either to spend a victim monero, cause a loss or to learn any information about user's received or sent transactions (e.g., transaction ovnership, balance, outgoing transaction addresses).
  
 \subsection{Definitions}
 
