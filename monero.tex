@@ -447,6 +447,67 @@ The range proof consists of Borromean signature and $C_i$ array of 32~B commitme
 \paragraph{Bulletproof range proof.} The offloading mechanism is very similar to the Borromean range proof. The random mask is generated in the Trezor. The commitment is recomputed in the Trezor to make sure it was not tampered with (simple computation step with amount and mask). 
 However, by switching to Bulletproof the range proof size for 2 outputs is reduced roughly from 12~352~B to 2~500~B as Bulletproof signs all outputs with a single signature. The size increases only logarithmically with respect to the number of output transactions. The offloading is not required with Bulletproof if the number of output transactions is small \cite{Bnz2017BulletproofsSP}.
 
+\subsection{Large transactions}
+Simple transactions have roughly around 13.2 kB in size. With range proof offloading it is very easy to compute it completelly in the Trezor. The problem can arise if user wants to spend many small inputs to pay to multiple addresses and/or the mixin size is large, e.g., above 10. This increases memory requirements until it is not feasible to compute the transaction in the Trezor.
+
+Please note the output processing has to be finished in order to do ringCT signature on the TXOs as the signature contains hash of the outputs (range proofs). Each TXO is ringCT-signed separately. The inputs to the signature are mainly:
+
+\begin{itemize}
+	\item Message hash to include in the signature. Binds the transaction to the TXO signature (see below), has 32~B in size.
+	\item Vector of pairs $(P_i, C_i)$, public keys and the commitments for the mixin inputs. One entry in the index is our TXO to spend, others are decoys. The size is $mixin * 64$~B.
+	\item Secret spending key $x_i$ and the mask $a_i$, together 64~B.
+\end{itemize}
+The memory requirements for the signature input is $mixin * 64 + 96$~B in total.
+
+The ring-CT signature per one TXO contains a 32~B key field \emph{cc} and the matrix of 32~B keys called \emph{ss} having $2$ rows and $mixin$ columns. The memory requirements for the output are then $mixin * 64 + 32$~B.
+
+\paragraph{Protocol subdivision }
+
+Obviously, the one-step transaction construction may not suffice for large transactions with many inputs and large mixins. Thus in order to support arbitrarily large transactions the subdivision has to be employed similarly to the Ledger. The proposal is to implement all-in-one approach first, supporting only smaller transactions. In the second phase the subdivided protocol will be implemented supporting arbitrarily large transactions. The subdivisiou should undergo a security review before being deployed to the production. In the subdivided approach we will not stick to the Ledger proposal as we can go few levels up compared to the relativelly low-level approach of the Ledger subdivision. E.g. compute the whole ringCT for one input in the Trezor. The minimal division unit would be one input/output.
+
+\paragraph{Memory consumption example:}
+If the transaction has 30 TXOs with mixin set to 20 the overall memory requirements for inputs are 41~280~B, output is 39~360~B. This is the minimal memory needed to do the computation. Signature itself consumes roughly aroung 128~kB of memory per TXO.
+
+\subsection{Signature details}
+
+RingCT signature over the input from $T_{in}$ signs besides the inputs also the hash of the message binding all transaction data to the input being signed. A part of the hash input string is the \emph{transaction\_prefix}:
+
+\begin{lstlisting}[language=c++]
+class transaction_prefix {
+public:
+  size_t   version;
+  uint64_t unlock_time;  
+  std::vector<txin_v> vin;
+  std::vector<tx_out> vout;
+  std::vector<uint8_t> extra;
+}
+\end{lstlisting}
+
+Fields \emph{version}, \emph{unlock\_time} are simple primitive types defining the transaction version and the block-time the transaction can be spent. Fields \emph{vin}, \emph{vout} define all TXO to spend and destinations respectivelly. Field \emph{extra} contains transaction public keys\footnote{More than 1 if sub-addresses are used} and another serialized metadata, such as encrypted payment ID.
+
+The transaction outputs \emph{tx\_out} is a tuple \emph{(amount, pub\_key)} for the ordinary outgoing transactions, sent by an user. 
+
+The \emph{txin\_v} is a variant type\footnote{Similar to union, can have one of the given types} but WLOG let's assume its type is \emph{txin\_to\_key} which is used with ordinary transactions. 
+
+\begin{lstlisting}[language=c++]
+struct txin_to_key {
+  uint64_t amount;
+  std::vector<uint64_t> key_offsets;
+  crypto::key_image k_image;
+}
+\end{lstlisting}
+
+The \emph{amount} is the real amount of the TXO to spend, even for RingCT transactions. Amounts are zeroed out after the signature is performed to protect the values in the transaction header as it gets to the blockchain.
+The vector \emph{key\_offsets} codes the TXO indices in the blockchain. They form a mix set. One of the TXO is our which we can spend, others are decoys.
+The \emph{k\_image} is the key image for the mix ring. It depends only on the TXO being spend. Decoy TXOs do not affect key image value, obviously.
+
+\paragraph{Security implications}
+The fact that RingCT signature signs also the hash of the \emph{transaction\_prefix} gives quite strong security guarantees. In fact the signed TXO can be spent only in the context of the given transaction. The signature cannot be re-used for spending in different transaction as the verification would fail. This protects from the attack where an attacker takes a valid transaction, reassembles it and submits own tampered version instead of the valid one.
+
+Thus if one can build transaction prefix hash securely in the Trezor we can use the protocol subdivision on the transaction inputs, ringCT signing one input TXO at a time.
+
+
+%The message is generated by function \verb|get_pre_mlsag_hash|.
 
 
 \section{Trezor.io}
