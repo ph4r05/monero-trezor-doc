@@ -268,7 +268,7 @@ Assume we are going to send $xmr$ Moneros to the address $(A_d, B_d)$
 Overall, the sending process goes like this (description inspired by Ledger proposal \cite{ledger_doc}):
 
 \begin{enumerate}
-	\item Generate a tsx key-pair $(r, R)$
+	\item Generate a transaction key-pair $(r, R)$
 	\item Process a stealth payment ID
 	\item Find random non-spend outputs $T_{in}$ covering the $xmr$ + fee.
 	\item Find fake outputs\footnote{get\_outs()} for $T_{in}$.
@@ -378,7 +378,7 @@ Trezor holds a transaction state:
 	
 	\item $H \rightarrow T$: Set inputs to spend + loaded fakes $T_{in}$. 
 	\begin{enumerate}
-		\item $T$: For each input: compute derivation, ephemeral spending key $x_{in}$, key image $I_{in}$.
+		\item $T$: For each input: compute derivation $\mathcal{D}_{in}$, ephemeral spending key $x_{in}$, key image $I_{in}$.
 	\end{enumerate}
 	
 	\item $H \rightarrow T$: Set range proofs \emph{asig} for $T_{out}$. Optional, can be computed in the Trezor, may be slower. Useful for Trezor.io (no JS implementation needed).
@@ -551,9 +551,9 @@ The brief recapitulation of the subdivided protocol:
 	\begin{enumerate}
 		\item Compute additional tx key if needed (sub-addresses).
 		
-		\item Generate the key derivation, derive a transaction output public key.
+		\item Generate the key derivation $\mathcal{D}_{out}$, derive a transaction output public key.
 		
-        \item The derivation is stored in the Trezor transaction state together with the HMAC of the output transaction data.
+        \item The derivation $\mathcal{D}_{out}$ is stored in the Trezor transaction state together with the HMAC of the output transaction data.
 		HMAC key: $H(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
 		
 		\item Change address for the change transaction is recomputed in the Trezor.
