@@ -516,7 +516,7 @@ Thus if we can build the transaction prefix and its hash securely in the Trezor 
 \paragraph{Memory requirements}
 The \emph{version} and \emph{unlock\_time} take 16 B. The \emph{extra} fields can vary in size, in majority of cases it contains the serialized transaction public key 32~B, the 8~B payment ID. It may contain multiple public keys if sub-addresses are involved. If there is at least one sub-address (and not the only one) in the output transaction, there is an additional public key for each transaction output, 32~B per transaction. Which gives minimally $16 + 32 = 48$~B. In general it may be $56 + \left|T_{out}\right| * 32$~B.
 
-The \emph{vin} takes roughly $(8 + 8 * mixin + 32) * \left|T_{in}\right|$~B, ignoring the serialization overhear (tagging, array size encoding). The \emph{vout} takes roughly $(8 + 32) * \left|T_{out}\right|$.
+The \emph{vin} takes roughly $(8 + 8 * mixin + 32) * \left|T_{in}\right|$~B, ignoring the serialization overhead (tagging, array size encoding). The \emph{vout} takes roughly $(8 + 32) * \left|T_{out}\right|$.
 
 The basic transaction with two inputs and two outputs and mixin 5 takes approximately $56 + (40 + 5*8)*2 + 40*2 = 296$~B. A more advanced case with 100 inputs, 100 outputs, and mixin level 100 yields 88~006~B.  
 
