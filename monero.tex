@@ -339,11 +339,13 @@ Trezor has more resources available for the same job so I suggest doing as maxim
 
 \subsubsection{Transaction assembly algorithm}
 
-The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in the process of assembling the inputs, outputs and the fee computation (e.g., \emph{wallet2.cpp:6940}\;\verb|goto skip_tx|). Without a need to redesign the software wallet logic we propose to generate multiple transactions similarly while only the one being sent and confirmed by the user will be valid - in order to do minimal source modifications in the official Monero code which should make PR merge easier. 
+The current version of the Monero software wallet may generate multiple pending transactions while only one is sent eventually in the process of assembling the inputs, outputs and the fee computation (e.g., \emph{wallet2.cpp:6940}\;\verb|goto skip_tx|). The fee is first estimated by a simple formula, then the transaction is fully assembled, signed and the real fee is computed as a function of transaction serialized blob. If the computed fee is higher than the  estimated value the transaction is recomputed, the old transaction is discarded.
 
-For the sake of preserving the same logic and minimal modifications, Trezor builds pending transactions which are sealed with the format preserving encryption with per-transaction encryption keys. Such sealed transaction looks exactly the same as a valid one in terms of size and data fields which enables to compute the fee exactly. But instead of valid signatures, it contains their encrypted versions. This form leaks no secret information thus the sealed transaction is useless without unsealing.  
+One could implement a precise fee computation algorithm but that would duplicate the serialization code which could lead to bugs when the structures are extended in the future. Thus it is easier and safer to build the transaction and then compute the blob size as we have only one code path working with transaction serialization. If serialization changes, the fee computation works without change.
 
-Once the algorithm picks the correct transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction content is unsealed (decrypted) and the valid transaction is returned. After that, the transaction state is reset.
+The software wallet does not have valid wallet keys and we don't want to involve Trezor in this assembly as it would pose unnecessary overhead. The fee computation will be done in the same way as it is now in the software wallet to avoid inducing new bugs. Wallet creates a transaction in the same way but signs it with random account keys. 
+
+Once the algorithm picks a correct transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction is signed with real keys in the Trezor and returned to the wallet. After that, the transaction state is reset.
 
 
 \subsubsection{High-level protocol description} 
@@ -357,7 +359,6 @@ Trezor holds a transaction state:
 	\item Global transaction counter $c_{tsx}$
 	\item Transaction data (inputs, outputs, $(r,R)$, range proofs, signatures, $\dots$)
 	\item Transaction cryptographic material: master key $k_{mst}$, base encryption key $k_{enc}$, base HMAC key $k_{hmac}$
-	\item Sealed transaction HMAC value $tsx_{hmac}$
 \end{itemize}
 
 \paragraph{Protocol description:}
@@ -386,42 +387,20 @@ Trezor holds a transaction state:
 		\item $T$: Store the range proofs.
 	\end{enumerate}
 	
-	\item $H \rightarrow T$: Request the sealed transaction $T_{seal}$
+	\item $H \rightarrow T$: Request the signed transaction $T_{clear}$
 	\begin{enumerate}
 		\item $T$: Transaction sanity check
+		
+        \item $T$: Ask the user for confirmation.
 
 		\item $T$: Compute output commitments
 		
 		\item $T$: Perform RingCT signatures on inputs $T_{in}$ (signs also the transaction prefix (inputs, outs, tsx pub key $R$, outputs range proofs, commitments)) with the $x_{in}$ and the key image $I_{in}$.
-	
-		\item $T$: Encrypt signature fields with $k_{enc}$ using AES-256 in CBC mode with $IV = H(k_{enc} \; || \; \text{"IV"} \; || \; \text{fieldIdx})$
-		
-		\item $T$: Compute the HMAC to protect transaction integrity and store it to the transaction state.
-		$tsx_{hmac} = \text{HMAC}_{k_{hmac}}(T_{seal})$
 	\end{enumerate} 
 	
-	\item $T \rightarrow H$: Return the sealed transaction $T_{seal}$.
-	
-	\item $H \rightarrow T$: Request to unseal the transaction $T_{seal}$.
-	\begin{enumerate}
-		\item $T$: Verify if $tsx_{hmac} = \text{HMAC}_{k_{hmac}}(T_{seal})$.
-		
-        \item $T$: Ask the user for confirmation.
-
-		\item $T$: Decrypt $T_{seal}$ transaction fields.
-	\end{enumerate}
-
-	\item $T \rightarrow H$: The valid transaction $T_{clear}$.
-	
+	\item $T \rightarrow H$: Return the signed transaction $T_{clear}$.
 \end{enumerate}
 %\improvement[inline]{Finish decription}
-
-
-\subsection{Transaction sealing}
-The sealing is implemented in the first phase to minimize code changes in the official Monero codebase while preserving the security level. 
-The benefit of the sealing is that the host can exactly compute transaction fees (based on the transaction blob size) and then ask to unseal the transaction before sending. Trezor does not have to store the whole transaction or rebuild it from scratch as simple signature decryption (unsealing) is enough.
-
-Later this can be reimplemented in a way software wallet creates a dummy transaction signed with random keys. This preserves the transaction length, so the fee computation is precise. Before the sending Trezor rebuilds the transaction - replaces dummy signatures with the real ones.
 
 \subsection{Range proof offloading}
 The range proof offloading is mainly motivated by the fact it makes up the significant portion of the transaction (per output) in size. The simplest Monero transactions with only two input and two outputs (change address) have around 
@@ -584,7 +563,7 @@ The brief recapitulation of the subdivided protocol:
 		
 		\item Hash range proofs incrementally to the \emph{final\_message}
 		
-		\item On the last transaction store the \emph{final\_message} hash. Check no transaction was dropped.
+		\item On the last transaction store the \emph{final\_message} hash. Check that no transaction was dropped.
 	\end{enumerate}
 
 	\item Send all transaction inputs $T_{in}$, one by one.
@@ -593,7 +572,6 @@ The brief recapitulation of the subdivided protocol:
 		
 		\item Compute RingCT MG signature $S_i$ on the input and the \emph{final\_message}.
 		
-		\item If using sealing, seal $S_i$ by $\text{AES-256-CBC}_{k_i}(S_i, IV_i)$, where $k_i = H(k_{enc} \; || \; \text{"txsig"} \; || \; i)$, $IV_i = H(k_{enc} \; || \; \text{"IV"} \; || \; i)$. Compute HMAC of the sealed transaction.
 	\end{enumerate} 
 	
 \end{enumerate}
@@ -633,7 +611,6 @@ The implementation process is incremental, start with MVP, minimal viable produc
 \begin{enumerate}
 	\item Trezor basic Monero-related ed25519 crypto
 	\item Transaction specific crypto-material derivation
-	\item Transaction sealing primitives
 	\item Monero binary serialization
 	\item Monero specific messages for Trezor-Host interface
 	\item RingCT and basic transaction primitives
