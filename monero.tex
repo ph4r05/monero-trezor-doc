@@ -592,7 +592,7 @@ The brief recapitulation of the subdivided protocol:
 		
 		\item Compute RingCT MG signature $S_i$ on the input and the \emph{final\_message}.
 		
-		\item If using sealing, seal $S_i$ by $\text{AES-256-CBC}_{k_i}(S_i, IV_i)$, where $k_i = H(k_{enc} \; || \; \text{txsig} \; || \; i)$, $IV_i = H(k_{enc} \; || \; \text{"IV"} \; || \; i)$. Compute HMAC of the sealed transaction.
+		\item If using sealing, seal $S_i$ by $\text{AES-256-CBC}_{k_i}(S_i, IV_i)$, where $k_i = H(k_{enc} \; || \; \text{"txsig"} \; || \; i)$, $IV_i = H(k_{enc} \; || \; \text{"IV"} \; || \; i)$. Compute HMAC of the sealed transaction.
 	\end{enumerate} 
 	
 \end{enumerate}
