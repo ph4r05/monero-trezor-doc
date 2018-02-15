@@ -270,8 +270,8 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 \begin{enumerate}
 	\item Generate a transaction key-pair $(r, R)$
 	\item Process a stealth payment ID
-	\item Find random non-spend outputs $T_{in}$ covering the $xmr$ + fee.
-	\item Find fake outputs\footnote{get\_outs()} for $T_{in}$.
+	\item Randomly select received non-spend transaction outputs to spend $T_{in}$ covering the $xmr$ + fee.
+	\item Find $mixin$ fake outputs\footnote{get\_outs()} for each transaction in $T_{in}$ to get ring size $mixin + 1$.
 	\item Load the transaction information $(P_i, C_i)$, public key (address) and the amount commitment, from the full-node RPC server for the real and fake outputs going to spend.
 	\item For each input transaction $T_{in}$:
 	\begin{enumerate}
