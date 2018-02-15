@@ -460,19 +460,19 @@ Please note the output processing has to be finished in order to do a ringCT sig
 
 \begin{itemize}
 	\item \emph{final\_message} hash. Binds the transaction to the TXO signature (see below), has 32~B in size.
-    \item Vector of pairs $(P_i, C_i)$, public keys and the commitments for the mixin inputs. One entry in the index is our TXO to spend; others are decoys. The size is $mixin * 64$~B.
+    \item Vector of $(P_i, C_i)$, the public keys and the commitments for the transaction inputs. One entry in the index is our TXO to spend; others are decoys / mixins. The size is $(mixin+1) * 64$~B.
 	\item Secret spending key $x_{in}$ and the mask $a_i$, together 64~B.
 \end{itemize}
-The memory requirements for the signature input is $mixin * 64 + 96$~B in total.
+The memory requirements for the signature input is $(mixin+1) * 64 + 96$~B in total.
 
-The ring-CT signature per one TXO contains a 32~B key field \emph{cc} and the matrix of 32~B keys called \emph{ss} having $2$ rows and $mixin$ columns. The memory requirements for the output are then $mixin * 64 + 32$~B.
+The ring-CT signature per one TXO contains a 32~B key field \emph{cc} and the matrix of 32~B keys called \emph{ss} having $2$ rows and $mixin + 1$ columns. The memory requirements for the output are then $(mixin + 1) * 64 + 32$~B.
 
 \paragraph{Protocol subdivision }
 
 Obviously, the one-step transaction construction may not suffice for large transactions with many inputs and large mixins. Thus in order to support arbitrarily large transactions, the subdivision has to be employed similarly to the Ledger. The proposal is to implement all-in-one approach first, supporting only smaller transactions. In the second phase, the subdivided protocol will be implemented supporting arbitrarily large transactions. The subdivision should undergo a security review before being deployed to the production. In the subdivided approach we will not stick to the Ledger proposal as we can go few levels up compared to the relatively low-level approach of the Ledger subdivision. E.g., compute the whole ringCT for one input in the Trezor. The minimal division unit would be one input/output.
 
 \paragraph{Memory consumption example:}
-If the transaction has 30 TXOs with mixin set to 20 the overall memory requirements for inputs are 41~280~B, outputs are 39~360~B. This is the minimal memory needed to do the computation. The signature itself consumes roughly around 128~B of memory per TXO.
+If the transaction has 30 TXOs with mixin set to 19 the overall memory requirements for inputs are 41~280~B, outputs are 39~360~B. This is the minimal memory needed to do the computation. The signature itself consumes roughly around 128~B of memory per TXO.
 
 \subsection{RingCT MLSAG Signature details}
 
@@ -517,9 +517,9 @@ Thus if we can build the transaction prefix and its hash securely in the Trezor 
 \paragraph{Memory requirements}
 The \emph{version} and \emph{unlock\_time} take 16 B. The \emph{extra} fields can vary in size, in majority of cases it contains the serialized transaction public key 32~B, the 8~B payment ID. It may contain multiple public keys if sub-addresses are involved. If there is at least one sub-address (and not the only one) in the output transaction, there is an additional public key for each transaction output, 32~B per transaction. Which gives minimally $16 + 32 = 48$~B. In general it may be $56 + \left|T_{out}\right| * 32$~B.
 
-The \emph{vin} takes roughly $(8 + 8 * mixin + 32) * \left|T_{in}\right|$~B, ignoring the serialization overhead (tagging, array size encoding). The \emph{vout} takes roughly $(8 + 32) * \left|T_{out}\right|$.
+The \emph{vin} takes roughly $(8 + 8 * (mixin + 1) + 32) * \left|T_{in}\right|$~B, ignoring the serialization overhead (tagging, array size encoding). The \emph{vout} takes roughly $(8 + 32) * \left|T_{out}\right|$.
 
-The basic transaction with two inputs and two outputs and mixin 5 takes approximately $56 + (40 + 5*8)*2 + 40*2 = 296$~B. A more advanced case with 100 inputs, 100 outputs, and mixin level 100 yields 88~006~B.  
+The basic transaction with two inputs and two outputs and mixin 4 takes approximately $56 + (40 + 5*8)*2 + 40*2 = 296$~B. A more advanced case with 100 inputs, 100 outputs, and mixin level 99 yields 88~006~B.  
 
 \subsection{Subdividing output processing}
 Assume transaction prefix and its hash is computed in the Trezor.
