@@ -85,10 +85,10 @@ In a weaker setting, only the full node is assumed to be fully compromised. The 
 	\end{enumerate}
 	\item A single transactions has zero\footnote{coinbase transaction has zero inputs, coin emission from the mining.} or more inputs; one or more outputs.
 	\item $(r, R)$ transaction key-pair. Unique per transaction. 
-	\item $(p, P)$ transaction output spend key and an address. Unique per transaction output.
+	\item $(x, P)$ transaction output spend key and an address. Unique per transaction output.
 	\begin{enumerate}
-		\item $p = H_s(aR) + b$, also called the ephemeral key. Used for spending.
-		\item $P = pG = H_s(aR)G + B$, public key stored in the transaction output.
+		\item $x = H_s(rA) + b$, also called the ephemeral key. Used for spending.
+		\item $P = xG = H_s(rA)G + B$, public key stored in the transaction output.
 	\end{enumerate}
 	\item $aR$ is also called the derivation (ECDH)
 \end{itemize}
