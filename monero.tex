@@ -343,7 +343,7 @@ The current version of the Monero software wallet may generate multiple pending 
 
 One could implement a precise fee computation algorithm but that would duplicate the serialization code which could lead to bugs when the structures are extended in the future. Thus it is easier and safer to build the transaction and then compute the blob size as we have only one code path working with transaction serialization. If serialization changes, the fee computation works without change.
 
-The software wallet does not have valid wallet keys and we don't want to involve Trezor in this assembly as it would pose unnecessary overhead. The fee computation will be done in the same way as it is now in the software wallet to avoid inducing new bugs. Wallet creates a transaction in the same way but signs it with random account keys. 
+The software wallet does not have valid wallet keys and we don't want to involve Trezor in this assembly as it would pose unnecessary overhead. The fee computation will be done in the same way as it is now in the software wallet to avoid potentially inducing new bugs. Wallet creates a transaction in the same way but signs it with random account keys. 
 
 Once the algorithm picks a correct transaction to send the user has to confirm all transaction outputs (including the change transaction). Once the transaction is confirmed the transaction is signed with real keys in the Trezor and returned to the wallet. After that, the transaction state is reset.
 
@@ -358,7 +358,7 @@ Trezor holds a transaction state:
 \begin{itemize}
 	\item Global transaction counter $c_{tsx}$
 	\item Transaction data (inputs, outputs, $(r,R)$, range proofs, signatures, $\dots$)
-	\item Transaction cryptographic material: master key $k_{mst}$, base encryption key $k_{enc}$, base HMAC key $k_{hmac}$
+	\item Transaction cryptographic material: master key $k_{mst}$, base HMAC key $k_{hmac}$
 \end{itemize}
 
 \paragraph{Protocol description:}
@@ -371,8 +371,6 @@ Trezor holds a transaction state:
 		\item $T$: Generate $(r, R)$, transaction key-pair.
 		
 		\item $T$: Increment Trezor transaction counter $c_{tsx}$, generate transaction master key $k_{mst} = H(TsxData \; || \; r \; || \; c_{tsx})$.
-		
-		\item $T$: Generate base encryption key $k_{enc} = H\left(\text{"enc"} \; || \; k_{mst}\right)$
 		
 		\item $T$: Generate HMAC key $k_{hmac} = H\left(\text{"hmac"} \; || \; k_{mst}\right)$
 	\end{enumerate}
