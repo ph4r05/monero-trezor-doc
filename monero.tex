@@ -159,7 +159,7 @@ The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j
 	
 	\item Public key for sending tsx to sub-address: $P = H_s(rC_{i,j})G + D_{i,j}$
 	
-	\item Private spending key: $p = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
+	\item Private spending key: $x = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
 	
 	\item The scanning for funds works with the same formula, only one computation is required. See \cite{mrl_006_subaddr} for details.
 \end{itemize}
