@@ -554,14 +554,14 @@ The brief recapitulation of the subdivided protocol:
 		
 		\item Compute \emph{mask}, \emph{output commitment}, \emph{ecdhInfo}.
 		
-		\item Compute the HMAC(\emph{asig} || \emph{Ci}) with the HMAC key $H(k_{hmac} \; || \; \text{"txoutres"} \; || \; i)$. Store the HMAC to the transaction state.
+		\item Compute the HMAC($asig_i$ || $Ci_i$) with the HMAC key $H(k_{hmac} \; || \; \text{"txoutres"} \; || \; i)$. Store the HMAC to the transaction state.
 		
 		\item Add data to the \emph{rct\_signatures} structure.
 		
-		\item Return the \emph{rct\_signatures} update, \emph{asig}, \emph{Ci}.
+		\item Return the \emph{rct\_signatures} update, $asig_i$, $Ci_i$.
 	\end{enumerate}
 
-	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$ computed data in the previous step. \emph{asig}, \emph{Ci}
+	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$ computed data in the previous step. $asig_i$, $Ci_i$
 	\begin{enumerate}
 		\item Check the HMAC
 		
