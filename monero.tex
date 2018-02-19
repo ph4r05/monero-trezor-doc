@@ -520,11 +520,11 @@ The brief recapitulation of the subdivided protocol:
 	\begin{enumerate}
 		\item Trezor computes $x_{in}, \mathcal{D}_{in}, I_{in}$. The $x_{in}, \mathcal{D}_{in}$ are stored in the Trezor transaction state.
 		
-		\item Compute transaction prefix \emph{vin}
+		\item Compute transaction prefix $vin_i$
 		
 		\item Compute HMAC on the data: HMAC($T_{in,i} \; || \; I_{in} \; || \; vin_i$), HMAC key: $H(k_{hmac} \; || \; \text{"txin"} \; || \; i)$.
 		
-		\item Return \emph{vin} part.
+		\item Return $vin_i$ part.
 	\end{enumerate} 
 	
 	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one. $T_{out,i} = ((A_d, B_d), \text{amount})_i$
@@ -537,11 +537,11 @@ The brief recapitulation of the subdivided protocol:
 		
         \item Store the derivation $\mathcal{D}_{out}$ in the Trezor transaction state.
         
-        \item Compute the transaction prefix \emph{vout} and \emph{extra}.
+        \item Compute the transaction prefix $vout_i$ and $extra_i$.
         
         \item HMAC of the output transaction data HMAC($T_{out,i} \; || \; P_{out} \; || \; P_{out,j} \; || \; vout_i \; || \; extra_i $) with HMAC key: $H(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
 		
-		\item Return the transaction prefix \emph{vout} and \emph{extra}.
+		\item Return the transaction prefix $vout_i$ and $extra_i$.
 		
 		\item On the last transaction: The transaction prefix hash is computed and stored to the state.
 	\end{enumerate}
