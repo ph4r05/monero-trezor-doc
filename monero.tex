@@ -479,7 +479,7 @@ struct txin_to_key {
 }
 \end{lstlisting}
 
-The \emph{amount} is the real amount of the TXO to spend, even for RingCT transactions. Amounts are zeroed out after the signature is performed to hide the values in the transaction header as it gets to the blockchain.
+The \emph{amount} is the real amount of the TXO to spend, even for RingCT transactions. RingCT amounts are zeroed out before the signature is performed to hide the values in the transaction header as it gets to the blockchain. Zeoring is also necessary so third parties can verify the signature as they don't know the amount values for RingCTs.
 The vector \emph{key\_offsets} codes the TXO indices in the blockchain. They form a mix set. One of the TXO is our which we can spend; others are decoys.
 The \emph{k\_image} is the key image for the mix ring. It depends only on the TXO being spent. Decoy TXOs do not affect key image value, obviously.
 
