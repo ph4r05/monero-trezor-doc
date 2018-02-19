@@ -230,6 +230,9 @@ There are several workaround variants for the transaction output identification.
 	\item The Trezor returns a list similarly as in the previous variant with a difference of sending prefix of the fixed size $p_s$
 	$\left[\text{prefix}_{p_s}\left(B^{\prime}_k\right), \text{prefix}_{p_s}\left(B^{\prime}_{k+1}\right), \dots\right]$. Host matches the prefixes with the internal prefix database. If a match is found, transaction is sent for detailed scanning (as before). Trezor might return null as a false positive hit.
 	
+	\item Use Bloom filter\footnote{ \url{http://llimllib.github.io/bloomfilter-tutorial/}, \url{https://en.wikipedia.org/wiki/Bloom_filter}} to optimize the storage of the sub-addresses. Bloom filter is a probabilistic data structure for checking the set membership returning results: maybe, no.
+	The method works similarly to the previous method but the space effectivity is improved. For number of sub-addresses $n=10000$, bit-size of the Bloom filter $m=100000$ the optimal number of hash functions $k=\frac{m}{n}ln2 \approx 7$, false positive probability is roughly $\left(1-e^{-kn/m}\right)^k \approx 0.0084$, $8$ false positives in $1000$ tests with memory requirements $12.5$~kB.
+	
 	\item Trezor builds an internal mapping: $\text{prefix}_{p_s}\left(D_{i,j}\right) \rightarrow \left[(i, j), \dots\right]$.
 	If the Trezor finds a prefix match it computes the full sub-address for all matched indices $(i,j)$ to decide false-positive vs. match. Then it returns a list $\left[(idx_1, (i_1, j_1), (idx_2, (i_2, j_2), \dots)\right]$ with all matched results to the host. 
 	
