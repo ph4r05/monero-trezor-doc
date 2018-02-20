@@ -158,7 +158,7 @@ The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j
 	
 	\item Public key for sending tsx to sub-address: $P = H_s(rC_{i,j})G + D_{i,j}$
 	
-	\item Private spending key: $x = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
+	\item Private spending key: $x = H_s(aR \; || \; idx) + b + H_s(a \; || \; i \; || \; j)$, where $idx$ is a real transaction output index in the transaction.
 	
 	\item The scanning for funds works with the same formula, only one computation is required. See \cite{mrl_006_subaddr} for details.
 \end{itemize}
@@ -273,12 +273,12 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item Generate a transaction key-pair $(r, R)$
 	\item Process a stealth payment ID
 	\item Randomly select received non-spend transaction outputs to spend $T_{in}$ covering the $xmr$ + fee.
-	\item Find $mixin$ fake outputs\footnote{get\_outs()} for each transaction in $T_{in}$ to get ring size $mixin + 1$.
+	\item Find $mixin$ fake outputs\footnote{get\_outs()} for each UTXO\footnote{unspend transaction output} $T_{in}$ to get ring size $mixin + 1$.
 	\item Load the transaction information $(P_i, C_i)$, public key (address) and the amount commitment, from the full-node RPC server for the real and fake outputs going to spend.
 	\item For each input transaction $T_{in}$:
 	\begin{enumerate}
 		\item Compute a derivation $\mathcal{D}_{in} = aR_{in}$
-		\item Compute an ephemeral tsx spend key $(x_{in}, P_{in})$, \\where $x_{in} = H_s(aR_{in}) + b$
+		\item Compute an ephemeral tsx spend key $(x_{in}, P_{in})$, \\where $x_{in} = H_s(aR_{in} \; || \; in) + b$
 		\item Compute a key image $I_{in} = x_{in}H_p(P_{in})$
 	\end{enumerate}
 	\item Build the set of output transactions $T_{out}$. Typically there is one transaction to the $(A_d, B_d)$ address.
@@ -286,7 +286,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item For each transaction output $T_{out}$:
 	\begin{enumerate}
 		\item Compute the range proof. Borromean or Bulletproof \cite{monero_1098, borromean, Bnz2017BulletproofsSP}.
-		\item Mask the output amount and the commitment mask in the \verb|ecdhInfo| with the secret $H_s(aR_{in})$ denoted as the amount key.
+		\item Mask the output amount and the commitment mask in the \verb|ecdhInfo|\footnote{\url{https://github.com/monero-project/monero/blob/a9421f78027dbbdfe82420a5c6f7e77eb4c80bf4/src/ringct/rctSigs.cpp\#L688}} with the secret $H_s(aR\; || \; idx)$ denoted as the amount key.
 		\item Compute the output commitments: $C = a_mG + xmrH$, where $a_m$ is a randomly generated commitment mask.
 	\end{enumerate}
 	\item Compute Ring-CT MG for each $T_{in}$ (real + fake inputs).
