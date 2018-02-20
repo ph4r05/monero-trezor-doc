@@ -614,10 +614,6 @@ The more complex integration scenario - trezor.io software wallet.
 
 \section{Implementation}
 
-%\improvement[inline]{TODO: Finish}
-
-\noindent TBD. Depends on the further requirements.\\
-
 The implementation process is incremental, start with MVP, minimal viable product. Later extend with more features. MVP has two basic features: 1) receive transactions, view balance, 2) send transaction. 
 
 \begin{enumerate}
@@ -630,6 +626,16 @@ The implementation process is incremental, start with MVP, minimal viable produc
 	\item Extend simplewallet to support Trezor
 	\item Monero wallet for Trezor.io 
 \end{enumerate}
+
+\subsection{Watch-only full wallet}
+The integration idea is to do minimal modifications to the official Monero codebase so the integration maintainability is increased. We aim to add minimal features required for our use case to the Monero codebase. 
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.8\textwidth, angle=0]{trezor-int.pdf}
+	\caption{Environment with the Trezor client}
+\end{figure}
+
 
 
 %\section{Current progress}
