@@ -286,7 +286,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item For each transaction output $T_{out}$:
 	\begin{enumerate}
 		\item Compute the range proof. Borromean or Bulletproof \cite{monero_1098, borromean, Bnz2017BulletproofsSP}.
-		\item Mask the output amount and the commitment mask in the \verb|ecdhInfo|\footnote{\url{https://github.com/monero-project/monero/blob/a9421f78027dbbdfe82420a5c6f7e77eb4c80bf4/src/ringct/rctSigs.cpp\#L688}} with the secret $H_s(aR_{in}\; || \; in)$ denoted as the amount key.
+		\item Mask the output amount and the commitment mask in the \verb|ecdhInfo|\footnote{\url{https://github.com/monero-project/monero/blob/a9421f78027dbbdfe82420a5c6f7e77eb4c80bf4/src/ringct/rctSigs.cpp\#L688}} with the secret $H_s(aR\; || \; idx)$ denoted as the amount key.
 		\item Compute the output commitments: $C = a_mG + xmrH$, where $a_m$ is a randomly generated commitment mask.
 	\end{enumerate}
 	\item Compute Ring-CT MG for each $T_{in}$ (real + fake inputs).
