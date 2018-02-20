@@ -616,6 +616,8 @@ The more complex integration scenario - trezor.io software wallet.
 
 The implementation process is incremental, start with MVP, minimal viable product. Later extend with more features. MVP has two basic features: 1) receive transactions, view balance, 2) send transaction. 
 
+\;
+\noindent Basic implementation steps:
 \begin{enumerate}
 	\item Trezor basic Monero-related ed25519 crypto
 	\item Transaction specific crypto-material derivation
@@ -628,13 +630,50 @@ The implementation process is incremental, start with MVP, minimal viable produc
 \end{enumerate}
 
 \subsection{Watch-only full wallet}
-The integration idea is to do minimal modifications to the official Monero codebase so the integration maintainability is increased. We aim to add minimal features required for our use case to the Monero codebase. 
+The integration idea is to do minimal modifications to the official Monero codebase so the integration maintainability and merge probability are increased. We aim to add minimal features required for our use case to the Monero codebase. 
+
+\paragraph{Watch-only wallet.} 
+The wallet having only view key available is called watch-only wallet. It performs the blockchain scanning for the user and stores all UTXO. The signatures have to be done in the full-fledged wallet with the spend key. 
+Monero wallet supports the cold-wallet scenario where the transaction is prepared in the watch-only wallet and signed in the cold-wallet. Trezor integration make use of this functionality to do the signature.
 
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=0.8\textwidth, angle=0]{trezor-int.pdf}
 	\caption{Environment with the Trezor client}
 \end{figure}
+
+\paragraph{Unsigned transaction.}
+The watch-only wallet exports \verb|struct unsigned_tx_set| encrypted with the view key which is imported in the fully-fledged wallet and signed. Here follows the overview of the \verb|unsigned_tx_set| structure and related types.
+
+\begin{lstlisting}[language=c++]
+typedef std::vector<transfer_details> transfer_container;
+
+struct unsigned_tx_set {
+  std::vector<tx_construction_data> txes;
+  wallet2::transfer_container transfers;
+};
+
+struct tx_construction_data {
+  std::vector<cryptonote::tx_source_entry> sources;
+  cryptonote::tx_destination_entry change_dts;
+  
+  // split, includes change
+  std::vector<cryptonote::tx_destination_entry> splitted_dsts; 
+  std::vector<size_t> selected_transfers;
+  std::vector<uint8_t> extra;
+  uint64_t unlock_time;
+  bool use_rct;
+  
+  // original setup, does not include change
+  std::vector<cryptonote::tx_destination_entry> dests; 
+  
+  // subaddress account of your wallet to be used in this transfer
+  uint32_t subaddr_account;  
+  
+  // set of address indices used as inputs in this transfer
+  std::set<uint32_t> subaddr_indices;  
+}
+\end{lstlisting}
 
 
 
