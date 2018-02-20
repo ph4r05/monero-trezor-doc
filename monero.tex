@@ -158,7 +158,7 @@ The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j
 	
 	\item Public key for sending tsx to sub-address: $P = H_s(rC_{i,j})G + D_{i,j}$
 	
-	\item Private spending key: $x = H_s(aR) + b + H_s(a \; || \; i \; || \; j)$
+	\item Private spending key: $x = H_s(aR \; || \; idx) + b + H_s(a \; || \; i \; || \; j)$, where $idx$ is a real transaction output index in the transaction.
 	
 	\item The scanning for funds works with the same formula, only one computation is required. See \cite{mrl_006_subaddr} for details.
 \end{itemize}
@@ -278,7 +278,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item For each input transaction $T_{in}$:
 	\begin{enumerate}
 		\item Compute a derivation $\mathcal{D}_{in} = aR_{in}$
-		\item Compute an ephemeral tsx spend key $(x_{in}, P_{in})$, \\where $x_{in} = H_s(aR_{in}) + b$
+		\item Compute an ephemeral tsx spend key $(x_{in}, P_{in})$, \\where $x_{in} = H_s(aR_{in} \; || \; in) + b$
 		\item Compute a key image $I_{in} = x_{in}H_p(P_{in})$
 	\end{enumerate}
 	\item Build the set of output transactions $T_{out}$. Typically there is one transaction to the $(A_d, B_d)$ address.
