@@ -640,12 +640,7 @@ The watch-only wallet exports \verb|struct unsigned_tx_set| encrypted with the v
 // UTXO vector
 typedef std::vector<transfer_details> transfer_container;
 
-// Unsigned transaction set
-struct unsigned_tx_set {
-  std::vector<tx_construction_data> txes;
-  wallet2::transfer_container transfers;
-};
-
+// Data for signing one transaction
 struct tx_construction_data {
   std::vector<cryptonote::tx_source_entry> sources;
   cryptonote::tx_destination_entry change_dts;
@@ -666,6 +661,12 @@ struct tx_construction_data {
   // set of address indices used as inputs in this transfer
   std::set<uint32_t> subaddr_indices;  
 }
+
+// Unsigned transaction set
+struct unsigned_tx_set {
+  std::vector<tx_construction_data> txes;
+  wallet2::transfer_container transfers;
+};
 \end{lstlisting}
 
 \paragraph{SW wallet integration.} The software wallet can be either linked to the wrapping project or RPC calls can be used. The linking enables to use \verb|wallet2_api.h|\footnote{\url{https://github.com/monero-project/monero/blob/master/src/wallet/api/wallet2_api.h}} and \verb|wallet_manager.h|\footnote{\url{https://github.com/monero-project/monero/blob/master/src/wallet/api/wallet_manager.h}} which is simpler to use rather than \verb|wallet_rpc_server.h|\footnote{\url{https://github.com/monero-project/monero/blob/master/src/wallet/wallet_rpc_server.h}} which requires serialization but provides greater flexibility.
