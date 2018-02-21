@@ -4,6 +4,7 @@
 \usepackage{cite}
 \usepackage{url}
 \usepackage[breaklinks=true]{hyperref}
+\usepackage{float}
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{amssymb}
@@ -596,27 +597,11 @@ If the estimated size of the transaction is below a certain value (depends on $|
 
 Multi-sig is not supported in the first implementation.
 
-\section{Trezor.io}
-
-The more complex integration scenario - trezor.io software wallet.
-\begin{enumerate}
-	\item Chrome plugin - communication channel to the Trezor device. 
-	JS interface to the Trezor. Minimal changes, add new Monero-related messages.
-	
-	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). A user can run his local node. The node is set in the trezor.io menu. By default, there can be an implicit node owned by the SatoshiLabs or Monero open nodes. So far it seems we don't need blockchain explorer (such as Insight for BTC). The RPC interface of the monero full-node seems enough for the initial version.
-	
-	\item Basic Monero JS wallet for Trezor.io. Minimalistic for a start. Simple receive + send (spending proofs, etc. can be added later or by the community). 
-	
-	\item Trezor.io wallet stores transfers, does transaction scanning, wallet refresh, communicates with the full-node (refresh, fake get outs). Range proof could be implemented in the Trezor directly for this case. 
-	
-	\item Implement Monero crypto in JS. Basic Monero-specific ed25519 operations, SHA-3 based $H_s(), H_p()$.
-	
-\end{enumerate}
-
-
 \section{Implementation}
 
 The implementation process is incremental, start with MVP, minimal viable product. Later extend with more features. MVP has two basic features: 1) receive transactions, view balance, 2) send transaction. 
+
+Receiving transactions does not require Trezor interaction as the view key is exported to the software wallet. Sending a transaction required Trezor interaction.
 
 \;
 \noindent Basic implementation steps:
@@ -632,24 +617,27 @@ The implementation process is incremental, start with MVP, minimal viable produc
 \end{enumerate}
 
 \subsection{Watch-only full wallet}
-The integration idea is to do minimal modifications to the official Monero codebase so the integration maintainability and merge probability are increased. We aim to add minimal features required for our use case to the Monero codebase. 
+The integration idea is to do minimal modifications to the official Monero codebase so the integration maintainability and merge probability are increased. We aim to add minimal feature set required for our use case to the Monero codebase. 
 
-\paragraph{Watch-only wallet.} 
-The wallet having only view key available is called watch-only wallet. It performs the blockchain scanning for the user and stores all UTXO. The signatures have to be done in the full-fledged wallet with the spend key. 
-Monero wallet supports the cold-wallet scenario where the transaction is prepared in the watch-only wallet and signed in the cold-wallet. Trezor integration make use of this functionality to do the signature.
+\paragraph{Watch-only wallet and Trezor client} 
+The wallet having only view key available is called watch-only wallet. It performs the blockchain scanning for the user, stores all UTXO, communicates with the full-node, assembles the transaction inputs for a new transfer but the signatures have to be done in the full-fledged wallet with the spend key. 
 
-\begin{figure}[h]
+Monero wallet supports a cold-wallet scenario where the transaction is prepared in the watch-only wallet, so called \emph{unsigned transaction}, and the signature is performed in the cold-wallet. Trezor integration make use of this functionality to do the signature. In order to decouple Trezor specific code from the official Monero codebase there is another software module added, Trezor software client facilitating the communication and the protocol itself. The client can be later integrated to the Monero codebase or run standalone and communicate over a socket.
+
+\begin{figure}[H]
 	\centering
 	\includegraphics[width=0.6\textwidth, angle=0]{trezor-int.pdf}
 	\caption{Environment with the Trezor client}
 \end{figure}
 
 \paragraph{Unsigned transaction.}
-The watch-only wallet exports \verb|struct unsigned_tx_set| encrypted with the view key which is imported in the fully-fledged wallet and signed. Here follows the overview of the \verb|unsigned_tx_set| structure and related types.
+The watch-only wallet exports \verb|struct unsigned_tx_set| encrypted with the view key which is imported in the fully-fledged wallet, decrypted, and signed. Here follows the overview of the \verb|unsigned_tx_set| structure and related types.
 
 \begin{lstlisting}[language=c++]
+// UTXO vector
 typedef std::vector<transfer_details> transfer_container;
 
+// Unsigned transaction set
 struct unsigned_tx_set {
   std::vector<tx_construction_data> txes;
   wallet2::transfer_container transfers;
@@ -677,6 +665,77 @@ struct tx_construction_data {
 }
 \end{lstlisting}
 
+\paragraph{SW wallet integration.} The software wallet can be either linked to the wrapping project or RPC calls can be used. The linking enables to use \verb|wallet2_api.h|\footnote{\url{https://github.com/monero-project/monero/blob/master/src/wallet/api/wallet2_api.h}} and \verb|wallet_manager.h|\footnote{\url{https://github.com/monero-project/monero/blob/master/src/wallet/api/wallet_manager.h}} which is simpler to use rather than \verb|wallet_rpc_server.h|\footnote{\url{https://github.com/monero-project/monero/blob/master/src/wallet/wallet_rpc_server.h}} which requires serialization but provides greater flexibility.
+
+In the following sections the signature integration schemes are proposed.
+
+\subsection{Variant A - interaction with the monero-wallet-cli}
+In this variant a user interacts with the traditional Monero wallet software running as watch-only wallet, either CLI or the GUI extension. Trezor client is a module in the software wallet and wallet has to be configured to use the Trezor. 
+The benefit is users use existing interfaces with minimal changes and learning new UX.
+The downside is the monero wallet has to be able to call the signing method on the Trezor client to sign the transaction.
+
+\begin{itemize}
+	\item Wallet communicates with the node in several round-trips. Outputs frame groups the whole communication.
+	\item Step 1.3 the sign call passes \verb|unsigned_tx_set| structure to the Trezor client. 
+	\item Protocol frame encapsulates the whole signature protocol as described above. Trezor client implements the signature protocol. There can be several message round-trips in the protocol.
+	\item Trezor client returns all signed transactions to the software wallet which submits them to the full node.
+	\item The client can a) run standalone on a socket, b) be invoked as an external program, c) be integrated as a shared lib / plugin to the Monero codebase. If the client runs as an external application users need to install another piece of software which can be quite a hassle.
+\end{itemize}
+ 
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\textwidth, angle=0]{variantA.pdf}
+	\caption{Interaction sequence variant A}
+\end{figure}
+
+Changes required in this scenario are mainly related to the step 1.3. SW wallet has to be able to call the client (RPC/.so func call). Wallet has to be configured to run with the Trezor client.
+
+\subsection{Variant B - interaction with the client}
+This variant assumes the main entry point is the Trezor client which calls software watch-only Monero wallet, either via RPC or via .so func call (wallet2 linked to the client). The Trezor client forms a wrapper for the official Monero wallet. The wrapper can initialize the software wallet in watch-only mode with the view-key exported so the configuration hassle is reduced compared to the previous variant. This variant also enables to quickly proof the concept of the signature protocol with minimal code changes to the Monero code base. 
+
+Linking the official wallet code rather than using RPC methods is faster in terms of implementation for the initial PoC as no serialization and new RPC methods are needed to be added to the Monero code. Once the linking scenario is implemented the RPC extension using newly implemented functions is added which provides greater flexibility and decoupling.
+
+The linking also enables to use original CLI wallet interface with overriding only spend-key related commands by extending the \verb|simple_wallet| class. Other commands can be proxied to the software wallet. This preserves the UX for the user while enabling flexibility using the Trezor for signing. Linking approach is also used by other Monero wallets, e.g. \emph{monerujo.io}.\footnote{\url{https://github.com/m2049r/xmrwallet}}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\textwidth, angle=0]{variantB.pdf}
+	\caption{Interaction sequence variant B}
+\end{figure}
+
+This variant does not require changing the software wallet.
+Only the small portion of the \verb|simple_wallet| is reimplemented in the client, namely \verb|simple_wallet::transfer_main()| function.
+
+Trezor client uses \verb|wallet2::create_transactions_2| to create pending transaction which can be later signed by the signature protocol.
+
+\begin{lstlisting}[language=c++]
+std::vector<wallet2::pending_tx> wallet2::create_transactions_2(
+  std::vector<cryptonote::tx_destination_entry> dsts, 
+  const size_t fake_outs_count, 
+  const uint64_t unlock_time, 
+  uint32_t priority, 
+  const std::vector<uint8_t>& extra, 
+  uint32_t subaddr_account, 
+  std::set<uint32_t> subaddr_indices, 
+  bool trusted_daemon)
+\end{lstlisting}
+
+\section{Trezor.io}
+
+The more complex integration scenario - trezor.io software wallet.
+\begin{enumerate}
+	\item Chrome plugin - communication channel to the Trezor device. 
+	JS interface to the Trezor. Minimal changes, add new Monero-related messages.
+	
+	\item Trezor.io Monero RPC node. Full-node local vs. remote node (trusted). A user can run his local node. The node is set in the trezor.io menu. By default, there can be an implicit node owned by the SatoshiLabs or Monero open nodes. So far it seems we don't need blockchain explorer (such as Insight for BTC). The RPC interface of the monero full-node seems enough for the initial version.
+	
+	\item Basic Monero JS wallet for Trezor.io. Minimalistic for a start. Simple receive + send (spending proofs, etc. can be added later or by the community). 
+	
+	\item Trezor.io wallet stores transfers, does transaction scanning, wallet refresh, communicates with the full-node (refresh, fake get outs). Range proof could be implemented in the Trezor directly for this case. 
+	
+	\item Implement Monero crypto in JS. Basic Monero-specific ed25519 operations, SHA-3 based $H_s(), H_p()$.
+	
+\end{enumerate}
 
 
 %\section{Current progress}
