@@ -375,9 +375,7 @@ Trezor holds a transaction state:
 		
 		\item $T$: Generate $(r, R)$, transaction key-pair.
 		
-		\item $T$: Increment Trezor transaction counter $c_{tsx}$, generate transaction master key $k_{mst} = H(TsxData \; || \; r \; || \; c_{tsx})$.
-		
-		\item $T$: Generate HMAC key $k_{hmac} = H\left(\text{"hmac"} \; || \; k_{mst}\right)$
+		\item $T$: Increment Trezor transaction counter $c_{tsx}$,
 	\end{enumerate}
 	
 	\item $H \rightarrow T$: Set inputs to spend + loaded fakes $T_{in}$. 
@@ -521,6 +519,11 @@ The brief recapitulation of the subdivided protocol:
 
 \begin{enumerate}
 	\item Initialize the new protocol run as in the original one step protocol.
+	\begin{enumerate}
+		\item generate transaction master key $k_{mst} = H(TsxData \; || \; r \; || \; c_{tsx})$.
+		
+		\item $T$: Generate HMAC key $k_{hmac} = H\left(\text{"hmac"} \; || \; k_{mst}\right)$
+	\end{enumerate}
 	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|.\\
 	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{pubs}, \dots)_i$
 	\begin{enumerate}
