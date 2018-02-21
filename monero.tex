@@ -175,7 +175,9 @@ The view-key $a$ is exported to the software wallet. For the receiving, no Trezo
 
 \noindent Cons:
 \begin{itemize}
-	\item Privacy loss. Host malware can read all future incoming inputs and the amounts. View-key can leak.
+	\item Permanent privacy loss. Host malware can read all future incoming inputs and the amounts. All wallets have to be assumed being public due to possible view-key leakage by the compromised host - even one time compromitation is enough.
+	\item View-key exfiltration. The transactions can be revealed long after the compromitation is cleared. E.g., in court, blackmailing rich wallets, ...
+	\item Inability to create short-lived wallets with destroying the view key after the wallet looses its purpose. 
 \end{itemize}
 
 \subsection{Private scanning}
@@ -245,8 +247,8 @@ We conclude that our improvements (batching) are viable alternatives for privacy
 \noindent Pros:
 \begin{itemize}
 	\item The view-key $a$ never leaves the device.
-	\item $a$ cannot be exfiltrated from the compromised host
-	\item The same security-level as the competitor.
+	\item $a$ cannot be exfiltrated from the compromised host. Transactions are leaked only during active compromitation.
+	\item The same security-level as the Ledger.
 \end{itemize}
 
 \noindent Cons:
