@@ -83,7 +83,7 @@ In a weaker setting, only the full node is assumed to be fully compromised. The 
 	\item $(A, B)$ the public wallet address, $A=aG$, $B=bG$
 	\item $(C_{i,j}, D_{i,j})$ public sub-address with $i, j$ major minor index resp.
 	\begin{enumerate}
-		\item $D_{i,j} = B + H_s(a \; || \; i \; || \; j)G$
+		\item $D_{i,j} = B + H_s('SubAddr' \; || \; a \; || \; i \; || \; j)G$
 		\item $C_{i,j} = aD_{i,j}$ 
 	\end{enumerate}
 	\item A single transactions has zero\footnote{coinbase transaction has zero inputs, coin emission from the mining.} or more inputs; one or more outputs.
@@ -161,7 +161,7 @@ The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j
 	
 	\item Public key for sending tsx to sub-address: $P = H_s(rC_{i,j})G + D_{i,j}$
 	
-	\item Private spending key: $x = H_s(aR \; || \; idx) + b + H_s(a \; || \; i \; || \; j)$, where $idx$ is a real transaction output index in the transaction.
+	\item Private spending key: $x = H_s(aR \; || \; idx) + b + H_s('SubAddr' \; || \; a \; || \; i \; || \; j)$, where $idx$ is a real transaction output index in the transaction.
 	
 	\item The scanning for funds works with the same formula, only one computation is required. See \cite{mrl_006_subaddr} for details.
 \end{itemize}
