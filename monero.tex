@@ -370,7 +370,7 @@ Trezor holds a transaction state:
 
 \paragraph{Protocol description:}
 \begin{enumerate}
-	\item $H \rightarrow T$: $TsxData = \text{payment\_id}, \left[\left(T_{out,i}, \text{amount}_i \right), \dots \right]$. Host sends the initial transaction data $TsxData$ to the Trezor by calling\\ InitTransaction$\left(TsxData\right)$.
+	\item $H \rightarrow T$: $TsxData = \text{payment\_id},\text{unlock\_time},  \left[\left(T_{out,i}, \text{amount}_i \right), \dots \right]$. Host sends the initial transaction data $TsxData$ to the Trezor by calling: \emph{InitTransaction}$\left(TsxData\right)$.
 	
 	\begin{enumerate}
 		\item $T$: Reset the Trezor transaction state, store $TsxData$.
