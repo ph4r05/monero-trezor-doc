@@ -533,7 +533,7 @@ The brief recapitulation of the subdivided protocol:
 		
 		\item Compute transaction prefix $vin_i$
 		
-		\item Compute HMAC on the data: HMAC($T_{in,i} \; || \; I_{in} \; || \; vin_i$), HMAC key: $H(k_{hmac} \; || \; \text{"txin"} \; || \; i)$.
+		\item Compute HMAC on the data: HMAC($T_{in,i} \; || \; vin_i$), HMAC key: $H(k_{hmac} \; || \; \text{"txin"} \; || \; i)$.
 		
 		\item Return $vin_i$ part.
 	\end{enumerate} 
