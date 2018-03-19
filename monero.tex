@@ -726,6 +726,27 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(
   bool trusted_daemon)
 \end{lstlisting}
 
+\subsection{Memory considerations}
+Python uses arbitrary precision integers with a memory overhead.
+The following command shows the amount of memory required for certain data types and sizes:
+\begin{lstlisting}[language=python]
+>>> sys.getsizeof(0)
+24
+>>> sys.getsizeof(2**32-1)
+32
+>>> sys.getsizeof(2**64-1)
+36
+>>> sys.getsizeof(2**256-1)
+60
+>>> sys.getsizeof(b'00'*32)
+97
+\end{lstlisting}
+
+Monero works in EC with 32 B numbers. To store a 32 B number it takes 60 B in integer representation and 97 B in the hex-coded byte string representation (some ed25519 libraries and mininero use this hex-coded representation). For scalars it is apparently more effective to store integers naturaly without hex-coding, saving both memory and CPU cycles with recoding.
+
+EC point arithmetics can use classic point coordinates $(x, y)$ or extended Edwards point coordinates $(x,y,z,t)$. It takes 64 and 80 B to store tuple of 2 and 4 elements respectivelly. It thus take 184 B and 320 B to store an EC point in the natural form compared to the 97 B byte representation.
+
+
 \section{Trezor.io}
 
 The more complex integration scenario - trezor.io software wallet.
