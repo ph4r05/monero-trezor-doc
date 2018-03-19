@@ -738,13 +738,15 @@ The following command shows the amount of memory required for certain data types
 36
 >>> sys.getsizeof(2**256-1)
 60
->>> sys.getsizeof(b'00'*32)
+>>> sys.getsizeof(b'\x00'*32)
+65
+>>> sys.getsizeof(b'\x00'*64)
 97
 \end{lstlisting}
 
-Monero works in EC with 32 B numbers. To store a 32 B number it takes 60 B in integer representation and 97 B in the hex-coded byte string representation (some ed25519 libraries and mininero use this hex-coded representation). For scalars it is apparently more effective to store integers naturaly without hex-coding, saving both memory and CPU cycles with recoding.
+Monero works in EC with 32 B numbers. To store a 32 B number it takes 60 B in integer representation and 65 B in the byte string encoded representation (some ed25519 libraries and mininero use this representation). For scalars it is apparently more effective to store integers naturaly, saving both memory and CPU cycles with recoding.
 
-EC point arithmetics can use classic point coordinates $(x, y)$ or extended Edwards point coordinates $(x,y,z,t)$. It takes 64 and 80 B to store tuple of 2 and 4 elements respectivelly. It thus take 184 B and 320 B to store an EC point in the natural form compared to the 97 B byte representation.
+EC point arithmetics can use classic point coordinates $(x, y)$ or extended Edwards point coordinates $(x,y,z,t)$. It takes 64 and 80 B to store tuple of 2 and 4 elements respectivelly. It thus take 184 B and 320 B to store an EC point in the natural form compared to the 65 B byte representation.
 
 
 \section{Trezor.io}
