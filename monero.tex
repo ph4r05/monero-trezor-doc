@@ -732,15 +732,15 @@ The following command shows the amount of memory required for certain data types
 \begin{lstlisting}[language=python]
 >>> sys.getsizeof(0)
 24
->>> sys.getsizeof(2**32-1)
+>>> sys.getsizeof(2**32-1)  # 4B num
 32
->>> sys.getsizeof(2**64-1)
+>>> sys.getsizeof(2**64-1)  # 8B num
 36
->>> sys.getsizeof(2**256-1)
+>>> sys.getsizeof(2**256-1)  # 32B num
 60
->>> sys.getsizeof(b'\x00'*32)
+>>> sys.getsizeof(b'\x00'*32)  # 32B hex
 65
->>> sys.getsizeof(b'\x00'*64)
+>>> sys.getsizeof(b'\x00'*64)  # 64B hex
 97
 \end{lstlisting}
 
