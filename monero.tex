@@ -280,11 +280,11 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item Randomly select received non-spend transaction outputs to spend $T_{in}$ covering the $xmr$ + fee.
 	\item Find $mixin$ fake outputs\footnote{get\_outs()} for each UTXO\footnote{unspend transaction output} $T_{in}$ to get ring size $mixin + 1$.
 	\item Load the transaction information $(P_i, C_i)$, public key (address) and the amount commitment, from the full-node RPC server for the real and fake outputs going to spend.
-	\item For each input transaction $T_{in}$:
+	\item For each input transaction $T_{in}$ and each UTXO to spend $T_{in,i}$:
 	\begin{enumerate}
-		\item Compute a derivation $\mathcal{D}_{in} = aR_{in}$
-		\item Compute an ephemeral tsx spend key $(x_{in}, P_{in})$, \\where $x_{in} = H_s(aR_{in} \; || \; in) + b$
-		\item Compute a key image $I_{in} = x_{in}H_p(P_{in})$
+		\item Compute a derivation $\mathcal{D}_{in,i} = aR_{in}$
+		\item Compute an ephemeral tsx spend key $(x_{in,i}, P_{in,i})$, \\where $x_{in,i} = H_s(\mathcal{D}_{in,i} \; || \; \text{varint}(i)) + b$, where $i$ is the index of the UTXO in the transaction $T_{in}$
+		\item Compute a key image $I_{in,i} = x_{in,i}H_p(P_{in,i})$
 	\end{enumerate}
 	\item Build the set of output transactions $T_{out}$. Typically there is one transaction to the $(A_d, B_d)$ address.
 	\item If input $>$ output + fee, create a change transaction $T_{chx} \rightarrow T_{out}$. 
@@ -382,7 +382,7 @@ Trezor holds a transaction state:
 	
 	\item $H \rightarrow T$: Set inputs to spend + loaded fakes $T_{in}$. 
 	\begin{enumerate}
-		\item $T$: For each input: compute derivation $\mathcal{D}_{in}$, ephemeral spending key $x_{in}$, key image $I_{in}$.
+		\item $T$: For each input: compute derivation $\mathcal{D}_{in,i}$, ephemeral spending key $x_{in,i}$, key image $I_{in,i}$.
 	\end{enumerate}
 	
 	\item $H \rightarrow T$: Set range proofs \emph{asig} for $T_{out}$. Optional, can be computed in the Trezor, may be slower. Useful for Trezor.io (no JS implementation needed).
@@ -529,7 +529,7 @@ The brief recapitulation of the subdivided protocol:
 	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|.\\
 	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{pubs}, \dots)_i$
 	\begin{enumerate}
-		\item Trezor computes $x_{in}, \mathcal{D}_{in}, I_{in}$. The $x_{in}, \mathcal{D}_{in}$ are stored in the Trezor transaction state.
+		\item Trezor computes $x_{in}, \mathcal{D}_{in}, I_{in}$. The $x_{in}$ is stored in the Trezor transaction state.
 		
 		\item Compute transaction prefix $vin_i$
 		
@@ -542,12 +542,11 @@ The brief recapitulation of the subdivided protocol:
 	\begin{enumerate}
 		\item Change address for the change transaction $T_{chx}$ is recomputed in the Trezor.
 				
-		\item Generate the key derivation $\mathcal{D}_{out}$
+		\item Generate the key derivation $\mathcal{D}_{out}$, amount key.
+        \item Store the amount key in the Trezor transaction state.
 		\item Derive a transaction output public key $P_{out}$
 		\item Compute additional tx public keys $P_{out,j}$ if needed (sub-addresses)
 		
-        \item Store the derivation $\mathcal{D}_{out}$ in the Trezor transaction state.
-        
         \item Compute the transaction prefix $vout_i$ and $extra_i$.
         
         \item HMAC of the output transaction data HMAC($T_{out,i} \; || \; P_{out} \; || \; P_{out,j} \; || \; vout_i \; || \; extra_i $) with HMAC key: $H(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
@@ -744,9 +743,9 @@ The following command shows the amount of memory required for certain data types
 97
 \end{lstlisting}
 
-Monero works in EC with 32 B numbers. To store a 32 B number it takes 60 B in integer representation and 65 B in the byte string encoded representation (some ed25519 libraries and mininero use this representation). For scalars it is apparently more effective to store integers naturaly, saving both memory and CPU cycles with recoding.
+Monero works in EC with 32 B numbers. To store a 32 B number it takes 60 B in integer representation and 65 B in the byte string encoded representation (some ed25519 libraries and mininero use this representation). For scalars it is apparently more effective to store integers naturally, saving both memory and CPU cycles with recoding.
 
-EC point arithmetics can use classic point coordinates $(x, y)$ or extended Edwards point coordinates $(x,y,z,t)$. It takes 64 and 80 B to store tuple of 2 and 4 elements respectivelly. It thus take 184 B and 320 B to store an EC point in the natural form compared to the 65 B byte representation.
+EC point arithmetics can use classic point coordinates $(x, y)$ or extended Edwards point coordinates $(x,y,z,t)$. It takes 64 and 80 B to store tuple of 2 and 4 elements respectively. It thus take 184 B and 320 B to store an EC point in the natural form compared to the 65 B byte representation.
 
 
 \section{Trezor.io}
