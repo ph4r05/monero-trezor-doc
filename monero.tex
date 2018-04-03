@@ -549,8 +549,7 @@ The brief recapitulation of the subdivided protocol:
 	
 	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one. $T_{out,i} = ((A_d, B_d), \text{amount})_i$. Change output $T_{chx}$ is the last transaction output. 
 	\begin{enumerate}			
-		\item Generate the key derivation $\mathcal{D}_{out}$, i.e. the \emph{amount key}.
-        \item Store the \emph{amount key} in the Trezor transaction state.
+		\item Generate the key derivation $\mathcal{D}_{out}$, i.e., the \emph{amount key}.
 		
 		\item Derive a transaction output public key $P_{out} = H_s(\mathcal{D}_{out} || \text{varint}(\text{output\_index}))G + B_d$.
 		
@@ -558,39 +557,36 @@ The brief recapitulation of the subdivided protocol:
 		
         \item Compute the transaction prefix fields $tx.vout_i$ and $tx.extra_i$.
         
-        \item HMAC of the output transaction data HMAC($T_{out,i} \; || \; P_{out} \; || \; P_{out,j} \; || \; tx.vout_i \; || \; tx.extra_i $) with HMAC key: $H(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
+        \item Compute range proof on the output amount. \\
+        - Generate mask scalars for each bit in the output amount $a_{i, j}, j \in [0, 63]$. \\
+        - The range proof computes $C, rsig = \text{prove\_range}(a_{i, j}, amount_i)$, where $C$ is a Pedersen commitment on the output value: $C = \sum_{j}a_{i, j} G + amount_i H$. \\
+        - Compute $\text{out\_pk}_i = \text{CtKey}(\text{dest}=tx.vout_i.output,\text{mask}=C)$.\\  
+        - Compute $\text{ecdh\_info}_i$ masked with the \emph{amount key}. Plaintext data is $\text{amount}_i$ and mask $\sum_{j}a_{i, j}$.
         
-        %\item Compute range proof on the 
+        \item HMAC the output transaction data HMAC($T_{out,i} \; || \; tx.vout_i \; $) with HMAC key: $H(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
         
-		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$.
+        \item HMAC range proof HMAC($rsig$) with HMAC key: $H(k_{hmac} \; || \; \text{"txout-asig"} \; || \; i)$.
+        
+        \item Store $tx.vout_i$, $tx.extra_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ to the transaction state.
+        
+		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$, $rsig_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ and corresponding HMACs.
 		
-		\item On the last transaction: The transaction prefix hash is computed and stored to the state.
 	\end{enumerate}
 	  
-	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one, together with offloaded data (tx pubkey, additional keys). 
+	\item $T$: On the last transaction: The transaction prefix hash is computed and stored to the state. 
+	
 	\begin{enumerate}
-		\item Check the HMAC
+		\item Check that sum of masks from the pseudo-outputs and output commitments are equal $\sum \alpha = \sum a_{i,j}$.
 		
-		\item Compute the Range proof in the host with randomness generated in Trezor.
+		\item Finalize incremental hashing of transaction prefix.
 		
-		\item Compute \emph{mask}, \emph{output commitment}, \emph{ecdhInfo}.
-		
-		\item Compute the HMAC($asig_i$ || $Ci_i$) with the HMAC key $H(k_{hmac} \; || \; \text{"txoutres"} \; || \; i)$. Store the HMAC to the transaction state.
-		
-		\item Add data to the \emph{rct\_signatures} structure.
-		
-		\item Return the \emph{rct\_signatures} update, $asig_i$, $Ci_i$.
-	\end{enumerate}
+		\item Return transaction prefix hash.
+	\end{enumerate} 
 
-	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$ computed data in the previous step. $asig_i$, $Ci_i$
-	\begin{enumerate}
-		\item Check the HMAC
-		
-		\item Hash range proofs incrementally to the \emph{final\_message}
-		
-		\item On the last transaction store the \emph{final\_message} hash. Check that no transaction was dropped.
-	\end{enumerate}
-
+	\item $H \rightarrow T$: Send all $\text{pseudo\_out}_{in}$, one by one, together with corresponding HMAC. Trezor incrementally hashes for the \emph{final\_message}. 
+	
+	\item $H \rightarrow T$: Send all range proofs, $\text{rsig}_{in}$, one by one, together with corresponding HMAC. Trezor incrementally hashes for the \emph{final\_message}. 
+	
 	\item Send all transaction inputs $T_{in}$, one by one.
 	\begin{enumerate}
 		\item Check the HMAC
