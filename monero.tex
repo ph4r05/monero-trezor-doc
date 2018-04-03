@@ -522,9 +522,9 @@ The brief recapitulation of the subdivided protocol:
 \begin{enumerate}
 	\item Initialize the new protocol run as in the original one step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin).
 	\begin{enumerate}
-		\item generate transaction master key $k_{mst} = H(TsxData \; || \; r \; || \; c_{tsx})$.
+		\item generate transaction master key $k_{mst} = H^2(TsxData \; || \; r \; || \; c_{tsx})$.
 		
-		\item $T$: Generate HMAC key $k_{hmac} = H\left(\text{"hmac"} \; || \; k_{mst}\right)$
+		\item $T$: Generate HMAC key $k_{hmac} = H^2\left(\text{"hmac"} \; || \; k_{mst}\right)$
 	\end{enumerate}
 	
 	\item $H \rightarrow T$: Precompute sub-addresses. Construction data returned from watch-only wallet contain account ID (major sub-address index) and list of minor sub-addresses indices used in the transaction. Trezor precomputes sub-address spend keys.
@@ -536,7 +536,7 @@ The brief recapitulation of the subdivided protocol:
 		
 		\item Compute transaction prefix field $tx.vin_i$
 		
-		\item Compute HMAC on the data: HMAC($T_{in,i} \; || \; vin_i$), HMAC key: $H(k_{hmac} \; || \; \text{"txin"} \; || \; i)$.
+		\item Compute HMAC on the data: HMAC($T_{in,i} \; || \; vin_i$), HMAC key: $H^2(k_{hmac} \; || \; \text{"txin"} \; || \; i)$.
 		
 		\item Compute pseudo-out, i.e., Pedersen commitment on the UTXO amount. $ \text{pseudo\_out}_{in} = \alpha_{in} G + \text{amount}_{in} H$.
 		
@@ -563,9 +563,9 @@ The brief recapitulation of the subdivided protocol:
         - Compute $\text{out\_pk}_i = \text{CtKey}(\text{dest}=tx.vout_i.output,\text{mask}=C)$.\\  
         - Compute $\text{ecdh\_info}_i$ masked with the \emph{amount key}. Plaintext data is $\text{amount}_i$ and mask $\sum_{j}a_{i, j}$.
         
-        \item HMAC the output transaction data HMAC($T_{out,i} \; || \; tx.vout_i \; $) with HMAC key: $H(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
+        \item HMAC the output transaction data HMAC($T_{out,i} \; || \; tx.vout_i \; $) with HMAC key: $H^2(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
         
-        \item HMAC range proof HMAC($rsig$) with HMAC key: $H(k_{hmac} \; || \; \text{"txout-asig"} \; || \; i)$.
+        \item HMAC range proof HMAC($rsig$) with HMAC key: $H^2(k_{hmac} \; || \; \text{"txout-asig"} \; || \; i)$.
         
         \item Store $tx.vout_i$, $tx.extra_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ to the transaction state.
         
@@ -596,6 +596,13 @@ The brief recapitulation of the subdivided protocol:
 	\end{enumerate} 
 	
 \end{enumerate}
+
+\paragraph{Alpha encryption}
+The $\alpha_i$ mask values are required during signing (simple RCT variant with \#UTXO $\ge 1$). As the number of UTXO can be quite large the state memory does not have to be big enough to hold all masks. In that case we need to offload the alpha values to the host. 
+
+In the current version we use AEAD encryption (authenticated encryption), namely AES-GCM with the key $H^2\left(H^2\left(\text{"hmac"} \; || \; k_{mst}\right) \; || \; \text{"txin-alpha"} \; || \; i\right)$. The $\alpha_i$ is then passed in the signing phase back to the Trezor. Trezor checks the autnehtication tag and decrypts the value. 
+
+The further research is needed to determine if encryption is needed or HMAC authentication is enough to preserve the security properties in the current attacker model, namely with no privacy guarantees on the host. As alpha values are not public by default the initial choice was to offload encrypted version, compared to the public values like range proofs, pseudo outputs and output public keys where HMAC is enough.
 
 \paragraph{HMAC verification}
 HMAC values are returned with the offloaded data to the host and verified when the offloaded values are loaded back to the Trezor. 
