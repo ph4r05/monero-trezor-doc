@@ -602,7 +602,7 @@ The subdivided protocol description follows:
 	
 	\item $H \rightarrow T$: Hashing done. Trezor returns \emph{final\_message\_hash}.
 	
-	\item Send all transaction inputs $T_{in}$, one by one.
+	\item Send all transaction inputs $T_{in}$, one by one, with hmacs, pseudo output, alpha.
 	\begin{enumerate}
 		\item Check the HMAC
 		
