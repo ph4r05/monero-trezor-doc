@@ -727,17 +727,29 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(
 
 \subsection{State model}
 
+State model of the transaction builder for incremental transaction signing. We assume many inputs (tens to hundreds, offloading to host) as balance can be scattered among many small UTXO while the output number is low (secrets kept in memory).
+
+In the Figure \ref{fig:detailed_state} there is a hidden failed state. In case of an exception (e.g., HMAC error, invalid number of inputs, invalid message) the state is switched to the final Failed state. The failed state is not implemented explicitly as on the exception the transaction builder state is reset.
+
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.6\textwidth,,trim={0 24cm 0 1cm},clip, angle=0]{tsx_state.pdf}
 	\caption{Simplified transaction state for incremental signing}
 \end{figure}
 
-
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=1.\textwidth,trim={0 24cm 0 1cm},clip, angle=0]{tsx_state_detail.pdf}
-	\caption{Detailed transaction state for incremental signing}
+	\caption{Detailed transaction state for incremental signing} \label{fig:detailed_state}
+\end{figure}
+
+\subsection{Signing data flow}
+The illustrative data flow in the transaction signing is depicted in figure \ref{fig:data_flow}.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1.\textwidth,trim={0 16cm 0 1cm},clip, angle=0]{data_flow.pdf}
+	\caption{Data flow during signing} \label{fig:data_flow}
 \end{figure}
 
 \subsection{Memory considerations}
