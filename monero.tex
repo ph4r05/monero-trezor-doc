@@ -725,6 +725,21 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(
   bool trusted_daemon)
 \end{lstlisting}
 
+\subsection{State model}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\textwidth,,trim={0 24cm 0 1cm},clip, angle=0]{tsx_state.pdf}
+	\caption{Simplified transaction state for incremental signing}
+\end{figure}
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1.\textwidth,trim={0 24cm 0 1cm},clip, angle=0]{tsx_state_detail.pdf}
+	\caption{Detailed transaction state for incremental signing}
+\end{figure}
+
 \subsection{Memory considerations}
 Python uses arbitrary precision integers with a memory overhead.
 The following command shows the amount of memory required for certain data types and sizes:
