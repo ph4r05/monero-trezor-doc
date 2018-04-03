@@ -517,6 +517,13 @@ Once all output transactions are computed, the \emph{final\_message} hash is com
 
 \subsection{Subdivided protocol overview}
 
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\textwidth,,trim={0 3cm 0 1cm},clip, angle=0]{subdivided_seq.pdf}
+	\caption{Subdivided protocol communication}
+\end{figure}
+
+
 The subdivided protocol description follows:
 
 \begin{enumerate}
@@ -584,12 +591,16 @@ The subdivided protocol description follows:
 		
 		\item Finalize incremental hashing of transaction prefix.
 		
-		\item Return transaction prefix hash.
+		\item Return transaction prefix hash, tx.extra.
 	\end{enumerate} 
+
+	\item $H \rightarrow T$: Get initial \emph{RctSig}. Trezor creates initial structure, returns to the host. Host builds the full transaction incrementally.
 
 	\item $H \rightarrow T$: Send all $\text{pseudo\_out}_{in}$, one by one, together with corresponding HMAC. Trezor incrementally hashes for the \emph{final\_message}. 
 	
 	\item $H \rightarrow T$: Send all range proofs, $\text{rsig}_{in}$, one by one, together with corresponding HMAC. Trezor incrementally hashes for the \emph{final\_message}. 
+	
+	\item $H \rightarrow T$: Hashing done. Trezor returns \emph{final\_message\_hash}.
 	
 	\item Send all transaction inputs $T_{in}$, one by one.
 	\begin{enumerate}
