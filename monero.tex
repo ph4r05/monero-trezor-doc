@@ -520,38 +520,49 @@ Once all output transactions are computed, the \emph{final\_message} hash is com
 The brief recapitulation of the subdivided protocol:
 
 \begin{enumerate}
-	\item Initialize the new protocol run as in the original one step protocol.
+	\item Initialize the new protocol run as in the original one step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin).
 	\begin{enumerate}
 		\item generate transaction master key $k_{mst} = H(TsxData \; || \; r \; || \; c_{tsx})$.
 		
 		\item $T$: Generate HMAC key $k_{hmac} = H\left(\text{"hmac"} \; || \; k_{mst}\right)$
 	\end{enumerate}
+	
+	\item $H \rightarrow T$: Precompute sub-addresses. Construction data returned from watch-only wallet contain account ID (major sub-address index) and list of minor sub-addresses indices used in the transaction. Trezor precomputes sub-address spend keys.
+
 	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|.\\
 	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{pubs}, \dots)_i$
 	\begin{enumerate}
 		\item Trezor computes $x_{in}, \mathcal{D}_{in}, I_{in}$. The $x_{in}$ is stored in the Trezor transaction state.
 		
-		\item Compute transaction prefix $vin_i$
+		\item Compute transaction prefix field $tx.vin_i$
 		
 		\item Compute HMAC on the data: HMAC($T_{in,i} \; || \; vin_i$), HMAC key: $H(k_{hmac} \; || \; \text{"txin"} \; || \; i)$.
 		
-		\item Return $vin_i$ part.
+		\item Compute pseudo-out, i.e., Pedersen commitment on the UTXO amount. $ \text{pseudo\_out}_{in} = \alpha_{in} G + \text{amount}_{in} H$.
+		
+		\item Return $tx.vin_i$ part, HMAC($T_{in,i} \; || \; tx.vin_i$), $\text{pseudo\_out}_{in}$.
 	\end{enumerate} 
+
+	\item $H \rightarrow T$: Set inputs permutation, inputs sorted by the key image. Permutation is represented as a simple integer array.
 	
-	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one. $T_{out,i} = ((A_d, B_d), \text{amount})_i$
-	\begin{enumerate}
-		\item Change address for the change transaction $T_{chx}$ is recomputed in the Trezor.
-				
-		\item Generate the key derivation $\mathcal{D}_{out}$, amount key.
-        \item Store the amount key in the Trezor transaction state.
-		\item Derive a transaction output public key $P_{out}$
-		\item Compute additional tx public keys $P_{out,j}$ if needed (sub-addresses)
+	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|, with corresponding $tx.vin_i$ part and HMAC. Trezor verifies the HMAC and incrementally hashes $tx.vin_i$ to the \emph{transaction\_prefix\_hash}.
+	
+	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one. $T_{out,i} = ((A_d, B_d), \text{amount})_i$. Change output $T_{chx}$ is the last transaction output. 
+	\begin{enumerate}			
+		\item Generate the key derivation $\mathcal{D}_{out}$, i.e. the \emph{amount key}.
+        \item Store the \emph{amount key} in the Trezor transaction state.
 		
-        \item Compute the transaction prefix $vout_i$ and $extra_i$.
+		\item Derive a transaction output public key $P_{out} = H_s(\mathcal{D}_{out} || \text{varint}(\text{output\_index}))G + B_d$.
+		
+		\item Compute additional tx public keys $P_{out,j}$ if needed (sub-addresses).
+		
+        \item Compute the transaction prefix fields $tx.vout_i$ and $tx.extra_i$.
         
-        \item HMAC of the output transaction data HMAC($T_{out,i} \; || \; P_{out} \; || \; P_{out,j} \; || \; vout_i \; || \; extra_i $) with HMAC key: $H(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
-		
-		\item Return the transaction prefix $vout_i$ and $extra_i$.
+        \item HMAC of the output transaction data HMAC($T_{out,i} \; || \; P_{out} \; || \; P_{out,j} \; || \; tx.vout_i \; || \; tx.extra_i $) with HMAC key: $H(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
+        
+        %\item Compute range proof on the 
+        
+		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$.
 		
 		\item On the last transaction: The transaction prefix hash is computed and stored to the state.
 	\end{enumerate}
