@@ -358,7 +358,7 @@ Once the algorithm picks a correct transaction to send the user has to confirm a
 \subsubsection{High-level protocol description} 
 All signatures are performed in the Trezor on the set of spending transaction outputs (TXO) in one step. Output range proofs are offloaded to the host as explained below.
 
-Let $H$ be a cryptographic hash function $H : \{0,1\}^* \rightarrow \{0,1\}^{256}$, preferably Keccak-256 which is already used in the Monero. HMAC uses the hash function $H$. Binary operator $||$ is a binary concatenation.
+Let $H$ be a cryptographic hash function $H : \{0,1\}^* \rightarrow \{0,1\}^{256}$, preferably Keccak-256 which is already used in the Monero. $H^2(x)$ is equivalent to $H(H(x))$.  HMAC uses the hash function $H$. Binary operator $||$ is a binary concatenation.
 
 \paragraph{State:}
 Trezor holds a transaction state:
