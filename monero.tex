@@ -376,6 +376,8 @@ Trezor holds a transaction state:
 \end{itemize}
 
 \paragraph{Protocol description:}
+
+In the protocol description context $H$ represents a host and $T$ represents Trezor.
 \begin{enumerate}
 	\item $H \rightarrow T$: $TsxData = \text{payment\_id},\text{unlock\_time},  \left[\left(T_{out,i}, \text{amount}_i \right), \dots \right]$. Host sends the initial transaction data $TsxData$ to the Trezor by calling: \emph{InitTransaction}$\left(TsxData\right)$.
 	
