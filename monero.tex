@@ -41,7 +41,7 @@
 Here follows the basic description of the Monero system, environment, and challenges that need to be addressed to integrate Monero wallet to the Trezor.
 
 Trezor is a hardware second factor, secure token storing wallet secrets in a secure way. 
-The Trezor is connected to the host running the software wallet communicating with the Trezor. The software wallet is connected to the full Monero which has stored the whole blockchain. The software wallet is operated by a user, the wallet owner. The wallet shows received and sent transactions, current balance and is used to enter payment information for a new transaction. The outgoing transaction has to be confirmed by a user on the Trezor.
+The Trezor is connected to the host running the software wallet communicating with the Trezor. The software wallet is connected to the full Monero node which has stored the whole blockchain. The software wallet is operated by a user, the wallet owner. The wallet shows received and sent transactions, current balance and is used to enter payment information for a new transaction. The outgoing transaction has to be confirmed by a user on the Trezor.
 
 \begin{figure}[h]
 	\centering
@@ -59,9 +59,9 @@ GitHub: \url{https://github.com/ph4r05/monero-trezor-doc}
 
 Trezor device attacker model is the same as with other crypto currencies (e.g., physical device security, memory forensics protection, side channel analysis, fault induction).
 
-The host and the full node are assumed to be fully compromised. An attacker can start multiple instances of protocols, interleave protocol runs, send, replay, delay or drop any messages to/from the Trezor. Attackers goal is to spend user-unconfirmed transaction to his advantage or to cause any damage to the user. As the software wallet is operated from the host there are naturally no privacy guarantees on the host. Compromised host sees all transactions and can naturally block some messages, e.g., incoming transactions. 
+The host and the full node are assumed to be fully compromised. An attacker can start multiple instances of protocols, interleave protocol runs, send, replay, delay or drop any messages to/from the Trezor. Attackers goal is to spend user-unconfirmed transaction to his advantage or to cause any damage to the user leading to loss of funds. As the software wallet is operated from the host there are naturally no privacy guarantees on the host. Compromised host sees all transactions and can naturally block some messages, e.g., incoming transactions. 
 
-In a weaker setting, only the full node is assumed to be fully compromised. The goal of an attacker on the full node is either to spend a victim monero, cause a loss or to learn any information about user's received or sent transactions (e.g., transaction ownership, balance, outgoing transaction addresses).
+In a weaker setting, only the full node is assumed to be fully compromised. The goal of an attacker on the full node is either to spend a victims monero, cause a loss or to learn any information about user's received or sent transactions (e.g., transaction ownership, balance, outgoing transaction addresses).
  
 \subsection{Definitions}
 
@@ -69,9 +69,10 @@ In a weaker setting, only the full node is assumed to be fully compromised. The 
 
 \begin{itemize}
 	\item $G$ is a base point of the curve $E$ (ed25519) of the order $l$
-	\item $H_p : \{0,1\}^* \rightarrow E$, hash function to a curve point
+	\item $H_p : \{0,1\}^* \rightarrow E$, hash function to a curve point\footnote{\url{https://github.com/monero-project/research-lab/blob/master/whitepaper/ge_fromfe_writeup/ge_fromfe.pdf}}. 	
 	\item $H_s : \{0,1\}^* \rightarrow [1, l-1]$, hash function to a scalar
-	\item $H = H_p(G)$, a point on the curve $E$. It holds $H=hG$, $h$ is unknown
+	\item $H = H_p(G)$, a point on the curve $E$. It holds $H=hG$, where $h$ is unknown
+	\item Points on the curve are denoted with capital letters, scalar values with lower case letters.
 	
 \end{itemize}
 
@@ -86,8 +87,8 @@ In a weaker setting, only the full node is assumed to be fully compromised. The 
 		\item $D_{i,j} = B + H_s('SubAddr' \; || \; a \; || \; i \; || \; j)G$
 		\item $C_{i,j} = aD_{i,j}$ 
 	\end{enumerate}
-	\item A single transactions has zero\footnote{coinbase transaction has zero inputs, coin emission from the mining.} or more inputs; one or more outputs.
-	\item $(r, R)$ transaction key-pair. Unique per transaction. 
+	\item A single transactions has zero\footnote{Coinbase transaction has zero inputs, represents coin emission from the mining.} or more inputs; one or more outputs.
+	\item $(r, R)$ transaction key-pair. Randomly generated per transaction. 
 	\item $(x, P)$ transaction output spend key and an address. Unique per transaction output.
 	\begin{enumerate}
 		\item $x = H_s(rA) + b$, also called the ephemeral key. Used for spending.
@@ -100,10 +101,15 @@ EC points and scalars occupy 32 B.
 
 There are field names from the JSON transaction representation used in the notation throughout the text.\footnote{Example: \url{https://xmrchain.net/tx/599533a7e42e82aa23c8da1d730fec047915ee5614556883cdce90739f1a94d3/1}}. There are also used variable names used in the Monero code base.
 
+\paragraph{Abbreviations}
+\begin{itemize}
+	\item Transaction is shortened to \emph{TX} or \emph{TSX}.
+	\item \emph{UTXO} stands for unspent transaction output, i.e., received monero usable for spending.
+\end{itemize}
+
 \subsection{Environment}
 
 The basic setup is a Trezor hardware wallet with the account keys and a connected host.
-
 We start with the most straightforward setup:
 \begin{itemize}
 	\item The host is running a Monero software wallet \verb|monero-wallet-cli|
@@ -112,17 +118,17 @@ We start with the most straightforward setup:
 	
 	\item The basic wallet operations are performed via \verb|monero-wallet-cli| which is configured to work with the Trezor device.
 	
-	\item Some of the operations are performed in the Trezor. 
+	\item Some of the operations are performed inside the Trezor. 
 \end{itemize}
 
-Later, also the monero-gui wallet is extended to support the Trezor.
+Later, also the monero-gui wallet will be extended to support the Trezor.
 
 \subsection{Account secrets.}
-Account key-pairs are BIP-44 generated from the seed. Spend-key never leaves the device. There are two variants w.r.t. the view-key $a$:
+Account key-pairs are BIP-44 generated from the seed. Spend-key never leaves the Trezor device. There are two variants w.r.t. the view-key $a$:
 
 \begin{enumerate}
-	\item Performance BC scanning: view-key is exported to the host-based wallet to do blockchain transaction scanning for the wallet.
-	\item Private BC scanning: view-key never leaves the device. The wallet synchronization is performed via Trezor. 
+	\item Performance BC scanning: view-key is exported to the host-based watch-only wallet to do the blockchain transaction scanning on behalf of the Trezor device. Watch-only device stores list of UTXO (unspent transaction outputs), i.e., received monero.
+	\item Private BC scanning: view-key never leaves the Trezor device. The blockchain scanning is performed inside Trezor. 
 \end{enumerate}
 
 All other wallet related data, e.g., outputs with received moneros are
@@ -131,7 +137,7 @@ stored in the wallet on the host.
 \subsection{Initialization} 
 The wallet can be either created from a fresh seed or recovered from an existing seed.
 
-The fresh wallet can be used right-away while the recovered wallet has to rescan the blockchain to detect all incoming transactions since the wallet create-time (if unknown, the whole blockchain).
+The fresh wallet can be used right-away while the recovered wallet has to rescan the blockchain to detect all incoming transactions since the original wallet create-time (if unknown, the whole blockchain).
 
 \section{Blockchain scanning}
 
@@ -147,7 +153,7 @@ B^\prime = P - H_s(aR)G
 
 If $\left(B^\prime = B\right) \; \vee \; \left(B^\prime \in \{D_{i,j}\}_{i,j}\right)$, then\footnote{$B^\prime$ is equal to the user's $B$ or one of it's sub-addresses} the transaction output is destined for us. Otherwise it can be ignored by the wallet.
 
-Computation complexity per transaction output: 2x point multiplications, 1x SHA-3, 1x point subtraction.
+Computation complexity per each transaction output: 2x point multiplications, 1x SHA-3, 1x point subtraction.
 
 \subsection{Sub-addresses}
 The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j)$, unsigned 32 bit major and minor index \cite{mrl_006_subaddr}.
@@ -159,11 +165,11 @@ The sub-address is defined by the base address $(A,B)$ and the index tuple $(i,j
 	
 	\item According to the convention, the master address has indices $(0, 0)$.
 	
-	\item Public key for sending tsx to sub-address: $P = H_s(rC_{i,j})G + D_{i,j}$
+	\item Public key for sending transaction to sub-address: $P = H_s(rC_{i,j})G + D_{i,j}$
 	
-	\item Private spending key: $x = H_s(aR \; || \; idx) + b + H_s('SubAddr' \; || \; a \; || \; i \; || \; j)$, where $idx$ is a real transaction output index in the transaction.
+	\item Private spending key: $x = H_s(aR \; || \; idx) + b + H_s('SubAddr' \; || \; a \; || \; i \; || \; j)$, where $idx$ is a real transaction output index in the transaction as transaction can have multiple outputs.
 	
-	\item The scanning for funds works with the same formula, only one computation is required. See \cite{mrl_006_subaddr} for details.
+	\item The blockchain scanning works with the same formula, no extra computation is needed. The wallet only needs to pre-compute all public spend keys which is done in advance. The protocol is backward compatible with standard addresses. For the proof check she Sub-address protocol proposal \cite{mrl_006_subaddr} for details.
 \end{itemize}
 
 \subsection{Performance scanning} 
