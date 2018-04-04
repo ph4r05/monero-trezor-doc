@@ -872,6 +872,315 @@ Few examples with full json transcript:
 	\item \footnotesize\url{https://xmrchain.net/tx/ae52a85bebaae2a488071aaf0dfbaf143148fd943a8d5f659e2c8ad61e69a318/1}
 \end{itemize}
 
+\section{Structure definitions}
+
+\lstdefinestyle{cstyle}{
+	numbers=none,
+	stepnumber=1,
+	tabsize=4,
+	showspaces=false,
+	showstringspaces=false
+}
+
+\lstset{
+	%string=[s]{"}{"},
+	%stringstyle=\color{blue},
+	comment=[l]{:},
+	commentstyle=\color{gray},
+	style=cstyle
+}
+
+\begin{lstlisting}[language=c++]
+
+// 
+// File: src/crypto/crypto.h
+// 
+
+struct ec_point {
+  char data[32];
+};
+
+struct ec_scalar {
+  char data[32];
+};
+
+struct public_key: ec_point {
+};
+
+//
+// File: src/cryptonote_basic/cryptonote_basic.h
+// 
+
+struct account_public_address {
+  crypto::public_key m_spend_public_key;
+  crypto::public_key m_view_public_key;
+}
+
+struct txout_to_script {
+  std::vector<crypto::public_key> keys;
+  std::vector<uint8_t> script;
+};
+
+struct txout_to_scripthash {
+  crypto::hash hash;
+};
+
+struct txout_to_key {
+  crypto::public_key key;
+};
+
+
+struct txin_gen {
+  size_t height;
+};
+
+struct txin_to_script {
+  crypto::hash prev;
+  size_t prevout;
+  std::vector<uint8_t> sigset;
+};
+
+struct txin_to_scripthash {
+  crypto::hash prev;
+  size_t prevout;
+  txout_to_script script;
+  std::vector<uint8_t> sigset;
+};
+
+struct txin_to_key {
+  uint64_t amount;
+  std::vector<uint64_t> key_offsets;
+  crypto::key_image k_image;  
+};
+
+typedef boost::variant<txin_gen, txin_to_script, txin_to_scripthash, 
+  txin_to_key> txin_v;
+
+typedef boost::variant<txout_to_script, txout_to_scripthash, 
+  txout_to_key> txout_target_v;
+
+
+struct tx_out {
+  uint64_t amount;
+  txout_target_v target;
+};
+
+class transaction_prefix {
+  size_t   version;
+  uint64_t unlock_time; 
+  std::vector<txin_v> vin;
+  std::vector<tx_out> vout;
+  std::vector<uint8_t> extra;
+};
+
+//
+// File: src/ringct/rctTypes.h
+//
+
+struct key {
+  unsigned char bytes[32];
+};
+
+typedef std::vector<key> keyV; //vector of keys
+typedef std::vector<keyV> keyM; //matrix of keys (indexed by column first)
+
+struct ctkey {
+  key dest;
+  key mask;
+};
+
+typedef std::vector<ctkey> ctkeyV;
+typedef std::vector<ctkeyV> ctkeyM;
+
+// Used for multisig data
+struct multisig_kLRki {
+  key k;
+  key L;
+  key R;
+  key ki;
+};
+
+struct ecdhTuple {
+  key mask;
+  key amount;
+}
+
+typedef key key64[64];
+struct boroSig {
+  key64 s0;
+  key64 s1;
+  key ee;
+};
+
+struct mgSig {
+  keyM ss;
+  key cc;
+  keyV II;
+};
+
+struct rangeSig {
+  boroSig asig;
+  key64 Ci;
+};
+
+struct Bulletproof
+{
+  rct::keyV V;
+  rct::key A, S, T1, T2;
+  rct::key taux, mu;
+  rct::keyV L, R;
+  rct::key a, b, t;
+}
+
+struct rctSigBase {
+  uint8_t type;
+  key message;
+  ctkeyM mixRing; //the set of all pubkeys / copy
+  keyV pseudoOuts;
+  std::vector<ecdhTuple> ecdhInfo;
+  ctkeyV outPk;
+  xmr_amount txnFee;
+}
+
+struct rctSigPrunable {
+  std::vector<rangeSig> rangeSigs;
+  std::vector<Bulletproof> bulletproofs;
+  std::vector<mgSig> MGs; // simple rct has N, full has 1
+  keyV pseudoOuts; //C - for simple rct
+}
+
+struct rctSig: public rctSigBase {
+  rctSigPrunable p;
+};
+
+//
+// File: src/cryptonote_core/cryptonote_tx_utils.h
+//
+
+struct tx_source_entry
+{
+  typedef std::pair<uint64_t, rct::ctkey> output_entry;
+
+  std::vector<output_entry> outputs;  //index + key + optional ringct commitment
+  size_t real_output;                 //index in outputs vector of real output_entry
+  crypto::public_key real_out_tx_key; //incoming real tx public key
+  std::vector<crypto::public_key> real_out_additional_tx_keys; //incoming real tx additional public keys
+  size_t real_output_in_tx_index;     //index in transaction outputs vector
+  uint64_t amount;                    //money
+  bool rct;                           //true if the output is rct
+  rct::key mask;                      //ringct amount mask
+  rct::multisig_kLRki multisig_kLRki; //multisig info
+}
+
+struct tx_destination_entry
+{
+  uint64_t amount;                    //money
+  account_public_address addr;        //destination address
+  bool is_subaddress;
+}
+
+// 
+// File: src/wallet/wallet2.h
+//
+
+struct multisig_info {
+  struct LR {
+    rct::key m_L;
+    rct::key m_R;
+  };
+
+  crypto::public_key m_signer;
+  std::vector<LR> m_LR;
+  
+  // one per key the participant has
+  std::vector<crypto::key_image> m_partial_key_images; 
+};
+
+struct transfer_details {
+  uint64_t m_block_height;
+  cryptonote::transaction_prefix m_tx;
+  crypto::hash m_txid;
+  size_t m_internal_output_index;
+  uint64_t m_global_output_index;
+  bool m_spent;
+  uint64_t m_spent_height;
+  crypto::key_image m_key_image; 
+  rct::key m_mask;
+  uint64_t m_amount;
+  bool m_rct;
+  bool m_key_image_known;
+  size_t m_pk_index;
+  cryptonote::subaddress_index m_subaddr_index;
+  bool m_key_image_partial;
+  std::vector<rct::key> m_multisig_k;
+  std::vector<multisig_info> m_multisig_info; // one per other participant
+}
+
+struct tx_construction_data{
+  std::vector<cryptonote::tx_source_entry> sources;
+  cryptonote::tx_destination_entry change_dts;
+  
+  // split, includes change
+  std::vector<cryptonote::tx_destination_entry> splitted_dsts; 
+  std::vector<size_t> selected_transfers;
+  std::vector<uint8_t> extra;
+  uint64_t unlock_time;
+  bool use_rct;
+  
+  // original setup, does not include change
+  std::vector<cryptonote::tx_destination_entry> dests; 
+  
+  // subaddress account of your wallet to be used in this transfer
+  uint32_t subaddr_account;   
+  
+  // set of address indices used as inputs in this transfer
+  std::set<uint32_t> subaddr_indices;  
+}
+
+typedef std::vector<transfer_details> transfer_container;
+typedef std::unordered_multimap<crypto::hash, payment_details> payment_container;
+
+struct multisig_sig {
+  rct::rctSig sigs;
+  crypto::public_key ignore;
+  std::unordered_set<rct::key> used_L;
+  std::unordered_set<crypto::public_key> signing_keys;
+  rct::multisig_out msout;
+};
+
+struct pending_tx
+{
+  cryptonote::transaction tx;
+  uint64_t dust, fee;
+  bool dust_added_to_fee;
+  cryptonote::tx_destination_entry change_dts;
+  std::vector<size_t> selected_transfers;
+  std::string key_images;
+  crypto::secret_key tx_key;
+  std::vector<crypto::secret_key> additional_tx_keys;
+  std::vector<cryptonote::tx_destination_entry> dests;
+  std::vector<multisig_sig> multisig_sigs;
+
+  tx_construction_data construction_data;
+}
+
+struct unsigned_tx_set {
+  std::vector<tx_construction_data> txes;
+  wallet2::transfer_container transfers;
+};
+
+struct signed_tx_set {
+  std::vector<pending_tx> ptx;
+  std::vector<crypto::key_image> key_images;
+};
+
+struct multisig_tx_set {
+  std::vector<pending_tx> m_ptx;
+  std::unordered_set<crypto::public_key> m_signers;
+};
+
+\end{lstlisting}
+
 % References
 \bibliography{monero}{}
 \bibliographystyle{plain}
