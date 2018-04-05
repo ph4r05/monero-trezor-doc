@@ -415,7 +415,8 @@ In the protocol description context $H$ represents a host and $T$ represents Tre
 %\improvement[inline]{Finish decription}
 
 \subsection{Range proof offloading}
-The range proof offloading is mainly motivated by the fact it makes up the significant portion of the transaction (per output) in size. The simplest Monero transactions with only two input and two outputs (change address) have around 
+Range proof could be potentially offloaded to the host to reduce computation time and the RAM consumption.
+The offloading is mainly motivated by the fact it makes up the significant portion of the transaction (per output) in size. The simplest Monero transactions with only two input and two outputs (change address) have around 
 13.2~kB where the range proof constitutes about 12~kB from the total size.\footnote{\url{https://getmonero.org/2017/12/07/Monero-Compatible-Bulletproofs.html}}
  
 Range proofs are computationally expensive and not using any account or transaction secrets. Offloading thus poses no additional security risk in the current attacker model. However, if the attacker generates masks in a predictable way it could lead to leaking amount being sent from the range proof stored on blockchain. This poses potential privacy risk as the attacker could potentially prove the amount to a third party from the blockchain (e.g., for court). The attacker on its own already knows the amount as the output addresses and amounts are entered on the attacker-controlled host.
