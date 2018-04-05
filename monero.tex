@@ -534,7 +534,7 @@ Once all output transactions are computed, the \emph{final\_message} hash is com
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.8\textwidth,,trim={0 4cm 0 1cm},clip, angle=0]{img/subdivided_seq.pdf}
+	\includegraphics[width=0.8\textwidth,,trim={0 6cm 0 1cm},clip, angle=0]{img/subdivided_seq.pdf}
 	\caption{Subdivided protocol communication}
 \end{figure}
 
@@ -542,7 +542,7 @@ Once all output transactions are computed, the \emph{final\_message} hash is com
 The subdivided protocol description follows:
 
 \begin{enumerate}
-	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin).
+	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin, fee).
 	\begin{enumerate}
 		\item Generate transaction master key $k_{mst} = H^2(TsxData \; || \; r \; || \; c_{tsx} \; || \; \text{rand\_nonce})$.
 		
@@ -586,9 +586,10 @@ The subdivided protocol description follows:
         \item Compute range proof on the output amount. \\
         - Generate scalar masks for each bit in the output amount $a_{i, j}, j \in [0, 63]$. \\
         - The range proof computes $C, rsig = \text{prove\_range}(a_{i, j}, amount_i)$, where $C$ is a Pedersen commitment on the output value: $C = \sum_{j}a_{i, j} G + amount_i H$. \\
+        - Hash the range proof incrementally to the \emph{final\_message}.\\
         - Compute $\text{out\_pk}_i = \text{CtKey}(\text{dest}=tx.vout_i.output,\text{mask}=C)$.\\  
-        - Compute $\text{ecdh\_info}_i$ masked with the \emph{amount key}. Plaintext data is $\text{amount}_i$ and mask $\sum_{j}a_{i, j}$.
-        
+        - Compute $\text{ecdh\_info}_i$ masked with the \emph{amount key}. Plaintext data is $\text{amount}_i$ and mask $\sum_{j}a_{i, j}$. 
+
         \item HMAC the output transaction data HMAC($T_{out,i} \; || \; tx.vout_i \; $) with HMAC key: $H^2(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
                 
         \item Store $tx.vout_i$, $tx.extra_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ to the transaction state.
@@ -609,8 +610,6 @@ The subdivided protocol description follows:
 
 	\item $H \rightarrow T$: Get initial \emph{RctSig}. Trezor creates initial structure, returns to the host. Host builds the full transaction incrementally.
 
-	\item $H \rightarrow T$: Send all $\text{pseudo\_out}_{in}$, one by one, together with corresponding HMAC. Trezor incrementally hashes for the \emph{final\_message}. 
-	
 	\item $H \rightarrow T$: Hashing done. Trezor returns \emph{final\_message\_hash}.
 	
 	\item Send all transaction inputs $T_{in}$, one by one, with hmacs, pseudo output, alpha.
