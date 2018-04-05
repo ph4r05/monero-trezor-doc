@@ -534,7 +534,7 @@ Once all output transactions are computed, the \emph{final\_message} hash is com
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.8\textwidth,,trim={0 3cm 0 1cm},clip, angle=0]{img/subdivided_seq.pdf}
+	\includegraphics[width=0.8\textwidth,,trim={0 4cm 0 1cm},clip, angle=0]{img/subdivided_seq.pdf}
 	\caption{Subdivided protocol communication}
 \end{figure}
 
@@ -590,9 +590,7 @@ The subdivided protocol description follows:
         - Compute $\text{ecdh\_info}_i$ masked with the \emph{amount key}. Plaintext data is $\text{amount}_i$ and mask $\sum_{j}a_{i, j}$.
         
         \item HMAC the output transaction data HMAC($T_{out,i} \; || \; tx.vout_i \; $) with HMAC key: $H^2(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
-        
-        \item HMAC range proof HMAC($rsig$) with HMAC key: $H^2(k_{hmac} \; || \; \text{"txout-asig"} \; || \; i)$.
-        
+                
         \item Store $tx.vout_i$, $tx.extra_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ to the transaction state.
         
 		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$, $rsig_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ and corresponding HMACs.
@@ -613,8 +611,6 @@ The subdivided protocol description follows:
 
 	\item $H \rightarrow T$: Send all $\text{pseudo\_out}_{in}$, one by one, together with corresponding HMAC. Trezor incrementally hashes for the \emph{final\_message}. 
 	
-	\item $H \rightarrow T$: Send all range proofs, $\text{rsig}_{in}$, one by one, together with corresponding HMAC. Trezor incrementally hashes for the \emph{final\_message}. 
-	
 	\item $H \rightarrow T$: Hashing done. Trezor returns \emph{final\_message\_hash}.
 	
 	\item Send all transaction inputs $T_{in}$, one by one, with hmacs, pseudo output, alpha.
@@ -627,7 +623,7 @@ The subdivided protocol description follows:
 	
 \end{enumerate}
 
-\paragraph{Alpha encryption}
+\paragraph{Alpha encryption, sensitive values offloading}
 The $\alpha_i$ mask values are required during signing (simple RCT variant with \#UTXO $\ge 1$). As the number of UTXO can be quite large the state memory does not have to be big enough to hold all masks. In that case we need to offload the alpha values to the host. 
 
 In the current version we use AEAD encryption (authenticated encryption), namely AES-GCM with the key $H^2\left(H^2\left(\text{"hmac"} \; || \; k_{mst}\right) \; || \; \text{"txin-alpha"} \; || \; i\right)$. The $\alpha_i$ is then passed in the signing phase back to the Trezor. Trezor checks the autnehtication tag and decrypts the value. 
