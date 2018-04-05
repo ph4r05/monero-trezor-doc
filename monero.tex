@@ -669,6 +669,55 @@ The illustrative data flow in the transaction signing is depicted in figure \ref
 \end{figure}
 
 
+\subsection{Range proof computation in Trezor}
+The range proof based on Borromean signatures consists of:
+\begin{itemize}
+	\item \emph{asig}.$s_0$ vector of 64 scalar values
+	\item \emph{asig}.$s_1$ vector of 64 scalar values
+	\item \emph{asig}.$ee$ scalar value
+	\item $C_i$ vector of 64 EC points, commitments
+\end{itemize}
+
+\paragraph{Basic memory usage}
+Assume the range proof is computed completely in the Trezor. Range proof itself consumes $(64 + 64 + 1) * 32 = 4128$~B for \emph{asig}, $64*32 = 2048$~B for $C_i$, commitments, $6176$~B in total.
+
+Memory optimized variant of the range proof performs no additional precomputations, e.g., powers of $H$ are computed incrementally in constant memory. The range proof generates 64 random scalar masks $a_i$ used in commitment $C_i$ which is part of the range proof as shown in Figure \ref{eq:ci}. Moreover the Borromean signature generates another 64 random scalar mask values $\alpha_i$. The overall memory complexity estimate is thus $6176 + 64*32 + 64*32 = 10272$~B with neglecting constant overhead from counters and accumulators.  
+
+\begin{figure}[H]
+\begin{equation}
+C_i = 
+\begin{cases} 
+a_iG & \text{bit(amount, i)} = 0 \\
+a_iG + 2^iH & \text{bit(amount, i)} = 1 \\
+\end{cases}
+\end{equation}
+\caption{$C_i$ Commitments} \label{eq:ci}
+\end{figure}
+
+\paragraph{Incremental version}
+Trezor 2 has enough memory to compute range proof in one pass without modification. However, this is not necessarily true for devices with smaller RAM where some kind of incremental approach might be needed.
+
+The naive incremental version computes range proof bit by bit, splitting it to 64 round-trips with minimal memory overhead per round-trip.
+The Range proof generator algorithm cannot be trivially transformed to an incremental version as it requires 2 dependent passes over the 64 bits representing the amount. The first pass affects values: $a_i, \alpha_i, C_i, asig.ee, asig.s_1$. The second pass uses $a_i, \alpha_i, C_i, asig.ee, asig.s_1$ values to compute final $asig.s_0, asig.s_1$ values. The problem is that $asig.ee$ is affected by each input value from the first pass and used in each step of the second pass. The incremental version thus would have to generate 128 random scalar masks $a_i, \alpha_i$ in advance as the exact same values are needed in the second pass. This leads to significant memory performance degradation, $4096$~B overhead.
+
+To overcome this issue we have to modify scalar mask generation method. Instead of generating the masks using the system random number generator we use own seeded random number generator as shown in Figure \ref{eq:masks}.
+
+\begin{figure}[H]
+
+	\begin{equation}
+	\begin{split}
+	a_i &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-ai" \; ) \; \text{mod} \; l  \\
+	\alpha_i &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-alphai" \; ) \; \text{mod} \; l
+	\end{split}
+	\end{equation}
+
+	\caption{$a_i, \alpha_i$ Generation. $idx$ is the output index in the transaction, $l$ is Ed25519 generator order.} \label{eq:masks}
+\end{figure}
+
+This modification assumes random oracle model. The output of a Keccak-256 is assumed to be indistinguishable from random number stream. The $H$ building block can be simply replaced by AES-CTR which is also commonly used as a standard PRNG. 
+
+With this modification the algorithm can be transformed to incremental version with computing range proof bit by bit. The second pass re-computes required $a_i, \alpha_i$ values.
+
 \section{Implementation}
 
 The implementation process is incremental, start with MVP, minimal viable product. Later extend with more features. MVP has two basic features: 1) receive transactions, view balance, 2) send transaction. 
