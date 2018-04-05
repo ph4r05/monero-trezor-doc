@@ -767,7 +767,7 @@ The second pass takes result of the first pass and produces $s0[i], s1[i]$.
 The naive incremental algorithm performs $2 * 64$ round trips. The trade-off between round trips and memory can be adjusted by batching some number of bit rounds together, depending on the amount of free memory. 
 
 \paragraph{Incremental hashing}
-Thanks to the \emph{final\_message} hash structure it is possible to incrementally hash range proof during the generation time. Once the range proof is generated it is not transfered to the device anymore.
+Due to the \emph{final\_message} hash structure it is not possible to incrementally hash range proof during the generation time. The second pass can hash all $s0$ but then we need to hash all $s1$, $ee$ and all $C$. The additional protocol round trips are needed to finish range proof hashing to the \emph{final\_message}. The range proof section is independent on other \emph{final\_message} sections thus its doable just after the range proof generation is finished. To avoid tampering of the computed values the $s1, ee, C$ have to be HMACed. The same batching applies as described in the previous paragraph. 
 
 \section{Implementation}
 
