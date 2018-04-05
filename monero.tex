@@ -418,7 +418,8 @@ In the protocol description context $H$ represents a host and $T$ represents Tre
 The range proof offloading is mainly motivated by the fact it makes up the significant portion of the transaction (per output) in size. The simplest Monero transactions with only two input and two outputs (change address) have around 
 13.2~kB where the range proof constitutes about 12~kB from the total size.\footnote{\url{https://getmonero.org/2017/12/07/Monero-Compatible-Bulletproofs.html}}
  
-Range proofs are computationally expensive and not using any account or transaction secrets. Offloading thus poses no additional security risk in the current attacker model. The idea is demonstrated mainly on the Borromean range proofs as they are big, but it also generalizes to the Bulletproof (the same interface). 
+Range proofs are computationally expensive and not using any account or transaction secrets. Offloading thus poses no additional security risk in the current attacker model. However, if attacker generates masks in a predictable way it could lead to leaking amount being sent from the range proof stored on blockchain. 
+The offloading idea is demonstrated mainly on the Borromean range proofs as they are big, but it also generalizes to the Bulletproof (the same interface). 
 
 The range proof is a zero-knowledge proof that the amount lies in the interval $[0, 2^{64})$ without revealing the amount value\footnote{To protect from a negative overflow which would generate new Monero - required part of confidential transaction mechanism using Pedersen commitments.}. Intuitively, the invalid range proof causes only the transaction rejection by the full node without compromising the security.
 
@@ -447,18 +448,19 @@ However, by switching to Bulletproof the range proof size for 2 outputs is reduc
 \subsection{Large transactions}
 Simple transactions have roughly around 13.2 kB in size. With range proof offloading it is very easy to compute it completely in the Trezor. The problem can arise if a user wants to spend many small inputs to pay to multiple addresses and/or the mixin size is large, e.g., above 10. This increases memory requirements, once the threshold is reached it is not feasible to compute the transaction in the Trezor.
 
-Please note the output processing has to be finished in order to do a RingCT signature on the TXOs as the signature contains hash of the outputs (range proofs), \emph{final\_message}. Each TXO is RingCT-signed separately. The inputs to the signature are mainly:
+Please note the transaction outputs processing has to be finished in order to do a RingCT signature on the UTXOs as the signature contains hash of the outputs (range proofs), \emph{final\_message}. Each UTXO is RingCT-signed separately. The inputs to the signature are mainly:
 
 \begin{itemize}
 	\item \emph{final\_message} hash. Binds the transaction to the TXO signature (see below), has 32~B in size.
-    \item Vector of $(P_i, C_i)$, the public keys and the commitments for the transaction inputs. One entry in the index is our TXO to spend; others are decoys / mixins. The size is $(mixin+1) * 64$~B.
+    \item Vector of $(P_i, C_i)$, the public keys and the commitments for the transaction inputs. One entry in the index is our UTXO to spend; others are decoys / mixins. The size is $(mixin+1) * 64$~B.
 	\item Secret spending key $x_{in}$ and the mask $a_i$, together 64~B.
 \end{itemize}
+For data flow diagram see Figure \ref{fig:data_flow}.
 The memory requirements for the signature input is $(mixin+1) * 64 + 96$~B in total.
 
 The RingCT signature per one TXO contains a 32~B key field \emph{cc} and the matrix of 32~B keys called \emph{ss} having $2$ rows and $mixin + 1$ columns. The memory requirements for the output are then $(mixin + 1) * 64 + 32$~B.
 
-\paragraph{Protocol subdivision }
+\paragraph{Protocol subdivision}
 
 Obviously, the one-step transaction construction may not suffice for large transactions with many inputs and large mixins. Thus in order to support arbitrarily large transactions, the subdivision has to be employed similarly to the Ledger. The proposal is to implement all-in-one approach first, supporting only smaller transactions. In the second phase, the subdivided protocol will be implemented supporting arbitrarily large transactions. The subdivision should undergo a security review before being deployed to the production. In the subdivided approach we will not stick to the Ledger proposal as we can go few levels up compared to the relatively low-level approach of the Ledger subdivision. E.g., compute the whole RingCT for one input in the Trezor. The minimal division unit would be one input/output.
 
