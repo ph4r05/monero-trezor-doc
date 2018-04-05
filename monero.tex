@@ -504,10 +504,17 @@ The \emph{amount} is the real amount of the TXO to spend, even for RingCT transa
 The vector \emph{key\_offsets} codes the TXO indices in the blockchain. They form a mix set. One of the TXO is our which we can spend; others are decoys.
 The \emph{k\_image} is the key image for the mix ring. It depends only on the TXO being spent. Decoy TXOs do not affect key image value, obviously.
 
-\paragraph{Final message hash} The final message hash has the following structure: \emph{final\_message} = \emph{transaction\_prefix} || \emph{rct\_signatures} output transaction data || \emph{rangeSigs} range proofs. Using the notation from the JSON transaction representation. \footnote{Example: \url{https://xmrchain.net/tx/599533a7e42e82aa23c8da1d730fec047915ee5614556883cdce90739f1a94d3/1}}
+\paragraph{Final message hash} The final message hash has the following structure:
+	
+\begin{equation}  \label{eq:final_message_hash}
+\text{final\_message\_hash} = H(H(\text{transaction\_prefix}) \; || \; H(\text{rct\_sig\_base}) \; || \; H(\text{range\_sigs}))
+\end{equation}
+
+Final message is hashed from 3 independent components. This fact is used in the subdivided signing protocol for incremental hashing of the \emph{final\_message}. E.g., range proof is hashed to the third component even though \emph{rct\_sig\_base} and \emph{transaction\_prefix} hashing is not finished which saves few protocol roundtrips.
+For the exact structures definition please refer to the appendix \ref{sec:structs}.
 
 \paragraph{Security implications}
-The fact that RingCT signature signs \emph{final\_message} which includes the \emph{transaction\_prefix} gives quite strong security guarantees. In fact, the signed TXO can be spent only in the context of the given transaction. The signature cannot be re-used for spending in a different transaction as the verification would fail. This protects from the attack where an attacker takes a valid transaction, reassembles it and submits own tampered version instead of the valid one.
+The fact that RingCT signature signs \emph{final\_message\_hash} which includes the \emph{transaction\_prefix\_hash} gives quite strong security guarantees. In fact, the signed TXO can be spent only in the context of the given transaction. The signature cannot be re-used for spending in a different transaction as the verification would fail. This protects from the attack where an attacker takes a valid transaction, reassembles it and submits own tampered version instead of the valid one.
 
 Thus if we can build the transaction prefix and its hash securely in the Trezor we can use the protocol subdivision on the transaction inputs, RingCT signing one input TXO at a time with the offloading result to the host. 
 
@@ -571,7 +578,7 @@ The subdivided protocol description follows:
 
 	\item $H \rightarrow T$: Set inputs permutation, inputs sorted by the key image. Permutation is represented as a simple integer array.
 	
-	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|, with corresponding $tx.vin_i$ part and HMAC. Trezor verifies the HMAC and incrementally hashes $tx.vin_i$ to the \emph{transaction\_prefix\_hash}.
+	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|, with corresponding $tx.vin_i$ part and HMAC. Trezor verifies the HMAC and incrementally hashes $tx.vin_i$ to the \emph{transaction\_prefix\_hash}. Moreover Trezor hashes $\text{pseudo\_out}_{in}$ to the RctSigBase.
 	
 	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one, as \verb|tx_destination_entry|, together with corresponding HMAC generated in the init step. $T_{out,i} = ((A_d, B_d), \text{amount}, \dots)_i$. Change output $T_{chx}$ is the last transaction output.  
 	\begin{enumerate}			
@@ -588,7 +595,8 @@ The subdivided protocol description follows:
         - The range proof computes $C, rsig = \text{prove\_range}(a_{i, j}, amount_i)$, where $C$ is a Pedersen commitment on the output value: $C = \sum_{j}a_{i, j} G + amount_i H$. \\
         - Hash the range proof incrementally to the \emph{final\_message}.\\
         - Compute $\text{out\_pk}_i = \text{CtKey}(\text{dest}=tx.vout_i.output,\text{mask}=C)$.\\  
-        - Compute $\text{ecdh\_info}_i$ masked with the \emph{amount key}. Plaintext data is $\text{amount}_i$ and mask $\sum_{j}a_{i, j}$. 
+        - Compute $\text{ecdh\_info}_i$ masked with the \emph{amount key}. Plaintext data is $\text{amount}_i$ and mask $\sum_{j}a_{i, j}$. \\ \medskip
+        - Hash the $\text{ecdh\_info}_i$ incrementally to the \emph{rct\_sig\_base} hash
 
         \item HMAC the output transaction data HMAC($T_{out,i} \; || \; tx.vout_i \; $) with HMAC key: $H^2(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
                 
