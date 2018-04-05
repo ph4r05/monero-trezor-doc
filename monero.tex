@@ -538,7 +538,7 @@ The subdivided protocol description follows:
 \begin{enumerate}
 	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin).
 	\begin{enumerate}
-		\item Generate transaction master key $k_{mst} = H^2(TsxData \; || \; r \; || \; c_{tsx})$.
+		\item Generate transaction master key $k_{mst} = H^2(TsxData \; || \; r \; || \; c_{tsx} \; || \; \text{rand\_nonce})$.
 		
 		\item Generate HMAC key $k_{hmac} = H^2\left(\text{"hmac"} \; || \; k_{mst}\right)$
 
