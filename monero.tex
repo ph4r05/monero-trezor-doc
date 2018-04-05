@@ -8,6 +8,9 @@
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage[toc,page]{appendix}
@@ -698,26 +701,73 @@ a_iG + 2^iH & \text{bit(amount, i)} = 1 \\
 \paragraph{Incremental version}
 Trezor 2 has enough memory to compute range proof in one pass without modification. However, this is not necessarily true for devices with smaller RAM where some kind of incremental approach might be needed.
 
-The naive incremental version computes range proof bit by bit, splitting it to 64 round-trips with minimal memory overhead per round-trip.
-The Range proof generator algorithm cannot be trivially transformed to an incremental version as it requires 2 dependent passes over the 64 bits representing the amount. The first pass affects values: $a_i, \alpha_i, C_i, asig.ee, asig.s_1$. The second pass uses $a_i, \alpha_i, C_i, asig.ee, asig.s_1$ values to compute final $asig.s_0, asig.s_1$ values. The problem is that $asig.ee$ is affected by each input value from the first pass and used in each step of the second pass. The incremental version thus would have to generate 128 random scalar masks $a_i, \alpha_i$ in advance as the exact same values are needed in the second pass. This leads to significant memory performance degradation, $4096$~B overhead.
+The naive incremental version computes range proof bit by bit, splitting it to 64 round-trips with minimal memory overhead per round-trip. The expected memory required for one round is roughly $10272 / 64 \approx 160$~B.
 
-To overcome this issue we have to modify scalar mask generation method. Instead of generating the masks using the system random number generator we use own seeded random number generator as shown in Figure \ref{eq:masks}.
+The Range proof generator algorithm cannot be trivially transformed to an incremental version as it requires 2 dependent passes over the 64 bits representing the amount. The symbolic range proof representation is illustrated by Algorithm \ref{alg:rangeproof}.
+
+\begin{algorithm}
+	\caption{Symbolic data flow in the Range proof} \label{alg:rangeproof}
+	\begin{algorithmic}[1]
+		\Function{RangeProof}{amount}
+		\State $b \gets bits(amount)$
+		\State $ee, sa, sC \gets 0, 0, O$
+		\State $a, \alpha, C \gets 64 * 0, 64 * 0, 64 * O$
+		\For{$i \in [0,63]$ }  \Comment{First pass}
+			\State $a[i] \gets$ randomScalar()
+			\State $\alpha[i] \gets$ randomScalar()
+			\State $C[i], s1[i] \gets $ fncPass1($a[i], \alpha[i], b[i]$) \Comment{Depends only on the current round}
+			\State $ee \gets \text{fncEe}(ee, C[i], s1[i])$ \Comment{$ee$ cross round dependency}
+			\State $sa \gets sa + a[i]$ \Comment{Accumulators for commitments}
+			\State $sC \gets \text{point\_add(sC, C[i])}$
+		\EndFor
+		
+		\State $\;$
+		\For{$i \in [0,63]$}  \Comment{Second pass}
+			\State $s0[i], s1[i] \gets \text{fncPass2}(a[i], \alpha[i], b[i], C[i], s1[i], ee)$ \Comment{$ee$ dependency}
+		\EndFor \\
+		
+		\Return{$sa, sC, C, s0, s1, ee$}
+		\EndFunction	
+	\end{algorithmic}
+\end{algorithm}
+
+Note the first pass generates all random values used in the range proof. Round results $C[i], s1[i]$ depend only on the current round values. The $ee$ which is needed for pass two accumulates information from each round. There are two more accumulators needed for commitments, $sa, sC$.
+The first pass is trivially parallelizable.
+Also note the second pass rounds use only information for the particular round, besides accumulator $ee$.
+The second pass makes use of generated random scalar masks. In the following paragraphs there are two possible incremental transformations presented.
+
+\paragraph{Deterministically generated masks}
+As scalar masks $a, \alpha$ are used in the second pass rounds the incremental version has to have an access to those values. Masks can be either stored in the memory, but this requires $128*32 = 4096$~B storage.
+To overcome this issue we can modify scalar mask generation method. Instead of generating the masks using the system random number generator we use own seeded random number generator as shown in Figure \ref{eq:masks}. In this way the second pass can regenerate the same mask values $a, \alpha$ as were used in the first pass.
 
 \begin{figure}[H]
 
 	\begin{equation}
 	\begin{split}
-	a_i &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-ai" \; ) \; \text{mod} \; l  \\
-	\alpha_i &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-alphai" \; ) \; \text{mod} \; l
+	a[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-ai" \; ) \; \text{mod} \; l  \\
+	\alpha[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-alphai" \; ) \; \text{mod} \; l
 	\end{split}
 	\end{equation}
 
-	\caption{$a_i, \alpha_i$ Generation. $idx$ is the output index in the transaction, $l$ is Ed25519 generator order.} \label{eq:masks}
+	\caption{$a[i], \alpha[i]$ Generation. $idx$ is the output index in the transaction, $l$ is Ed25519 generator order.} \label{eq:masks}
 \end{figure}
 
-This modification assumes random oracle model. The output of a Keccak-256 is assumed to be indistinguishable from random number stream. The $H$ building block can be simply replaced by AES-CTR which is also commonly used as a standard PRNG. 
+This modification assumes random oracle model. The output of a Keccak-256 is assumed to be indistinguishable from random number stream. The $H$ building block can be simply replaced by AES-CTR which is also commonly used as a PRNG.
 
-With this modification the algorithm can be transformed to incremental version with computing range proof bit by bit. The second pass re-computes required $a_i, \alpha_i$ values.
+The first pass it trivially paralellizable, returning $s1[i], C[i]$ with HMAC for each finished round. 
+After the first pass is finished the $sA, sC$ is returned. The second pass round takes $s0[i], C[i]$ as an input, checks the HMAC and computes corresponding $s0[i], s1[i]$.
+
+\paragraph{Memory Offloading}
+Another variant makes use of offloading an encrypted version of masks to the host.
+Masks are generated randomly as in the original algorithm.
+The first pass round returns $s1[i], C[i], \text{AES-GCM}(a[i], \alpha[i])$.
+The second pass takes result of the first pass and produces $s0[i], s1[i]$.
+
+\paragraph{Slicing} 
+The naive incremental algorithm performs $2 * 64$ round trips. The trade-off between round trips and memory can be adjusted by batching some number of bit rounds together, depending on the amount of free memory. 
+
+\paragraph{Incremental hashing}
+Thanks to the \emph{final\_message} hash structure it is possible to incrementally hash range proof during the generation time. Once the range proof is generated it is not transfered to the device anymore.
 
 \section{Implementation}
 
