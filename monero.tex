@@ -781,15 +781,15 @@ To overcome this issue we can modify scalar mask generation method. Instead of g
 
 	\begin{equation}
 	\begin{split}
-	a[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-ai" \; ) \; \text{mod} \; l  \\
-	\alpha[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-alphai" \; ) \; \text{mod} \; l
+	a[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; \text{"rsig-rnd-ai"} \; ) \; \text{mod} \; l  \\
+	\alpha[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; \text{"rsig-rnd-alphai"} \; ) \; \text{mod} \; l
 	\end{split}
 	\end{equation}
 
 	\caption{$a[i], \alpha[i]$ Generation. $idx$ is the output index in the transaction, $l$ is Ed25519 generator order.} \label{eq:masks}
 \end{figure}
 
-This modification assumes random oracle model. The output of a Keccak-256 is assumed to be indistinguishable from random number stream. The $H$ building block can be simply replaced by AES-CTR which is also commonly used as a PRNG.
+This modification assumes random oracle model. The similar approach is used in Fiat-Shamir heuristic, in zero knowledge proofs. The output of a Keccak-256 is assumed to be indistinguishable from random number stream. The $H$ building block can be simply replaced by AES-CTR which is also commonly used as a PRNG.
 
 The first pass it trivially paralellizable, returning $s1[i], C[i]$ with HMAC for each finished round. 
 After the first pass is finished the $sA, sC$ is returned. The second pass round takes $s0[i], C[i]$ as an input, checks the HMAC and computes corresponding $s0[i], s1[i]$.
