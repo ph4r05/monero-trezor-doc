@@ -791,8 +791,8 @@ To overcome this issue we can modify scalar mask generation method. Instead of g
 
 This modification assumes random oracle model. The similar approach is used in Fiat-Shamir heuristic, in zero knowledge proofs. The output of a Keccak-256 is assumed to be indistinguishable from random number stream. The $H$ building block can be simply replaced by AES-CTR which is also commonly used as a PRNG.
 
-The first pass it trivially paralellizable, returning $s1[i], C[i]$ with HMAC for each finished round. 
-After the first pass is finished the $sA, sC$ is returned. The second pass round takes $s0[i], C[i]$ as an input, checks the HMAC and computes corresponding $s0[i], s1[i]$.
+The first pass it trivially converted to incremental version, returning $s1[i], C[i]$ with HMAC for each finished round. 
+After the first pass is finished the $sA, sC, ee$ is returned. The second pass round takes $s0[i], C[i]$ as an input, checks the HMAC and computes corresponding $s0[i], s1[i]$.
 
 \paragraph{Memory Offloading}
 Another variant makes use of offloading an encrypted version of masks to the host.
