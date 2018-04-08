@@ -742,12 +742,10 @@ The illustrative data flow in the transaction signing is depicted in figure \ref
 
 \subsection{Range proof computation in Trezor}
 The range proof based on Borromean signatures consists of:
-\begin{itemize}
-	\item \emph{asig}.$s_0$ vector of 64 scalar values
-	\item \emph{asig}.$s_1$ vector of 64 scalar values
-	\item \emph{asig}.$ee$ scalar value
-	\item $C_i$ vector of 64 EC points, commitments
-\end{itemize}
+a) \emph{asig}.$s_0$ vector of 64 scalar values, 
+b) \emph{asig}.$s_1$ vector of 64 scalar values,
+c) \emph{asig}.$ee$ scalar value,
+d) $C_i$ vector of 64 EC points, commitments.
 
 \paragraph{Basic memory usage}
 Assume the range proof is computed completely in the Trezor. Range proof itself consumes $(64 + 64 + 1) * 32 = 4128$~B for \emph{asig}, $64*32 = 2048$~B for $C_i$, commitments, $6176$~B in total.
