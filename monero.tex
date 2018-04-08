@@ -44,7 +44,7 @@
 }
 
 %opening
-\title{Monero wallet Trezor integration draft v0.3.2}
+\title{Monero wallet Trezor integration draft v0.3.3}
 \author{Du\v{s}an Klinec \\{dusan.klinec@gmail.com}}
 
 
@@ -575,7 +575,7 @@ To protect the transaction components ordering and the integrity of the offloade
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.8\textwidth,,trim={0 6.5cm 0 1cm},clip, angle=0]{img/subdivided_seq.pdf}
+	\includegraphics[width=0.8\textwidth,,trim={0 11cm 0 1cm},clip, angle=0]{img/subdivided_seq.pdf}
 	\caption{Subdivided protocol communication}
 \end{figure}
 
@@ -583,7 +583,7 @@ To protect the transaction components ordering and the integrity of the offloade
 The subdivided protocol description follows:
 
 \begin{enumerate}
-	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin, fee).
+	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin, fee, account\_id, minor\_indices).
 	\begin{enumerate}
 		\item Generate transaction master key $k_{mst} = H^2(TsxData \; || \; r \; || \; c_{tsx} \; || \; \text{rand\_nonce})$.
 		
@@ -591,10 +591,10 @@ The subdivided protocol description follows:
 
 		\item Generate HMAC for each output HMAC($\text{output}_i$) with the HMAC key: $H^2(k_{hmac} \; || \; \text{"txdest"} \; || \; i)$ - the output pinning.
 		
+		\item Precompute sub-addresses. Construction data returned from watch-only wallet contain account ID (major sub-address index) and list of minor sub-addresses indices used in the transaction. Trezor precomputes sub-address spend keys.
+		
 		\item Return output HMACs.
-	\end{enumerate}
-	
-	\item $H \rightarrow T$: Precompute sub-addresses. Construction data returned from watch-only wallet contain account ID (major sub-address index) and list of minor sub-addresses indices used in the transaction. Trezor precomputes sub-address spend keys.
+	\end{enumerate} 
 
 	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|.\\
 	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{pubs}, \dots)_i$
@@ -640,17 +640,15 @@ The subdivided protocol description follows:
 		
 	\end{enumerate}
 	  
-	\item $T$: On the last transaction: The transaction prefix hash is computed and stored to the state. 
+	\item $H \rightarrow T$: All outputs set: The transaction prefix hash is computed and stored to the state. 
 	
 	\begin{enumerate}
 		\item Check that sum of masks from the pseudo-outputs and output commitments are equal $\sum \alpha = \sum a_{i,j}$.
 		
 		\item Finalize incremental hashing of transaction prefix: hash $\text{out\_pk}_i$ from state. All \emph{final\_message\_hash} components are complete now. 
 		
-		\item Return transaction prefix hash, tx.extra.
+		\item Return transaction prefix hash, tx.extra, initial \emph{RctSig} structure
 	\end{enumerate} 
-
-	\item $H \rightarrow T$: Get initial \emph{RctSig}. Trezor creates initial structure, returns to the host. Host builds the full transaction from the known values.
 
 	\item $H \rightarrow T$: Get full message hash. Trezor returns \emph{final\_message\_hash}.
 	
@@ -781,18 +779,18 @@ To overcome this issue we can modify scalar mask generation method. Instead of g
 
 	\begin{equation}
 	\begin{split}
-	a[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-ai" \; ) \; \text{mod} \; l  \\
-	\alpha[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; "rsig-rnd-alphai" \; ) \; \text{mod} \; l
+	a[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; \text{"rsig-rnd-ai"} \; ) \; \text{mod} \; l  \\
+	\alpha[i] &= H^4(k_{hmac} \; || \; idx \; || \; i \; || \; \text{"rsig-rnd-alphai"} \; ) \; \text{mod} \; l
 	\end{split}
 	\end{equation}
 
 	\caption{$a[i], \alpha[i]$ Generation. $idx$ is the output index in the transaction, $l$ is Ed25519 generator order.} \label{eq:masks}
 \end{figure}
 
-This modification assumes random oracle model. The output of a Keccak-256 is assumed to be indistinguishable from random number stream. The $H$ building block can be simply replaced by AES-CTR which is also commonly used as a PRNG.
+This modification assumes random oracle model. The similar approach is used in Fiat-Shamir heuristic, in zero knowledge proofs. The output of a Keccak-256 is assumed to be indistinguishable from random number stream. The $H$ building block can be simply replaced by AES-CTR which is also commonly used as a PRNG.
 
-The first pass it trivially paralellizable, returning $s1[i], C[i]$ with HMAC for each finished round. 
-After the first pass is finished the $sA, sC$ is returned. The second pass round takes $s0[i], C[i]$ as an input, checks the HMAC and computes corresponding $s0[i], s1[i]$.
+The first pass it trivially converted to incremental version, returning $s1[i], C[i]$ with HMAC for each finished round. 
+After the first pass is finished the $sA, sC, ee$ is returned. The second pass round takes $s0[i], C[i]$ as an input, checks the HMAC and computes corresponding $s0[i], s1[i]$.
 
 \paragraph{Memory Offloading}
 Another variant makes use of offloading an encrypted version of masks to the host.
