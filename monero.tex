@@ -697,7 +697,7 @@ The subdivided protocol description follows:
 \paragraph{Alpha offloading}
 The $\alpha_i$ mask values are required during signing (simple RCT variant with \#UTXO $\ge 1$). As the number of UTXO can be quite large the state memory does not have to be big enough to hold all masks. In that case we need to offload the alpha values to the host. 
 
-The AES-GCM is used with the key $H^2\left(H^2\left(\text{"hmac"} \; || \; k_{mst}\right) \; || \; \text{"txin-alpha"} \; || \; i\right)$. The $\alpha_i$ is then passed back to the Trezor in the signing phase. Alternative to offloading is deterministic mask generation described in section \ref{mask_reconstruction}.
+The AES-GCM is used with the key $H^2\left(H^2\left(\text{"enc"} \; || \; k_{mst}\right) \; || \; \text{"txin-alpha"} \; || \; i\right)$. The $\alpha_i$ is then passed back to the Trezor in the signing phase. Alternative to offloading is deterministic mask generation described in section \ref{mask_reconstruction}.
 
 The further research is needed to determine if encryption is needed or HMAC authentication is enough to preserve the security properties in the current attacker model, namely with no privacy guarantees on the host. As alpha values are not public by default the initial choice was to offload encrypted version, compared to the public values like range proofs, pseudo outputs and output public keys where HMAC is enough.
 
