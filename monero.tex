@@ -620,6 +620,8 @@ The subdivided protocol description follows:
 		\item Generate transaction master key $k_{mst} = H^2(TsxData \; || \; r \; || \; c_{tsx} \; || \; \text{rand\_nonce})$.
 		
 		\item Generate HMAC key $k_{hmac} = H^2\left(\text{"hmac"} \; || \; k_{mst}\right)$
+		
+		\item Generate ENC key $k_{enc} = H^2\left(\text{"enc"} \; || \; k_{mst}\right)$
 
 		\item Generate HMAC for each output HMAC($\text{output}_i$) with the HMAC key: $H^2(k_{hmac} \; || \; \text{"txdest"} \; || \; i)$ - the output pinning.
 		
@@ -631,15 +633,17 @@ The subdivided protocol description follows:
 	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|.\\
 	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{pubs}, \dots)_i$
 	\begin{enumerate}
-		\item Trezor computes $x_{in}, \mathcal{D}_{in}, I_{in}$. The $x_{in}$ is stored in the Trezor transaction state.
+		\item Trezor computes $x_{in}, \mathcal{D}_{in}, I_{in}$. The $x_{in}$ is stored in the Trezor transaction state. 
+		If the number of inputs grows large the secret value 
+		will have to be offloaded in an encrypted form.
 		
-		\item Compute transaction prefix field $tx.vin_i$
+		\item Compute transaction prefix field $tx.vin_i$, hash it incrementally to tx prefix hash.
 		
 		\item Compute HMAC on the data: HMAC($T_{in,i} \; || \; vin_i$), HMAC key: $H^2(k_{hmac} \; || \; \text{"txin"} \; || \; i)$.
 		
 		\item Compute pseudo-out, i.e., Pedersen commitment on the UTXO amount. $ \text{pseudo\_out}_{in} = \alpha_{in} G + \text{amount}_{in} H$.
 		
-		\item Return $tx.vin_i$ part, HMAC($T_{in,i} \; || \; tx.vin_i$), $\text{pseudo\_out}_{in}$, HMAC($\text{pseudo\_out}_{in}$).
+		\item Return $tx.vin_i$ part, HMAC($T_{in,i} \; || \; tx.vin_i$), $\text{pseudo\_out}_{in}$, HMAC($\text{pseudo\_out}_{in}$), AES-GCM($\alpha_{in}$)
 	\end{enumerate} 
 
 	\item $H \rightarrow T$: Set inputs permutation, inputs sorted by the key image. Permutation is represented as a simple integer array.
@@ -666,7 +670,7 @@ The subdivided protocol description follows:
 
         \item HMAC the output transaction data HMAC($T_{out,i} \; || \; tx.vout_i \; $) with HMAC key: $H^2(k_{hmac} \; || \; \text{"txout"} \; || \; i)$.
                 
-        \item Store $tx.vout_i$, $tx.extra_i$, $\text{out\_pk}_i$ to the transaction state.
+        \item Store $tx.extra_i$, $\text{out\_pk}_i$ to the transaction state.
         
 		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$, $rsig_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ and corresponding HMACs.
 		
@@ -697,7 +701,7 @@ The subdivided protocol description follows:
 \paragraph{Alpha offloading}
 The $\alpha_i$ mask values are required during signing (simple RCT variant with \#UTXO $\ge 1$). As the number of UTXO can be quite large the state memory does not have to be big enough to hold all masks. In that case we need to offload the alpha values to the host. 
 
-The AES-GCM is used with the key $H^2\left(H^2\left(\text{"enc"} \; || \; k_{mst}\right) \; || \; \text{"txin-alpha"} \; || \; i\right)$. The $\alpha_i$ is then passed back to the Trezor in the signing phase. Alternative to offloading is deterministic mask generation described in section \ref{mask_reconstruction}.
+The AES-GCM is used with the key $H^2\left(k_{enc} \; || \; \text{"txin-alpha"} \; || \; i\right)$. The $\alpha_i$ is then passed back to the Trezor in the signing phase. Alternative to offloading is deterministic mask generation described in section \ref{mask_reconstruction}.
 
 A further research is needed to determine if encryption is needed or HMAC authentication is enough to preserve the security properties in the current attacker model, namely with no privacy guarantees on the host. As alpha values are not public by default the initial choice was to offload encrypted version, compared to the public values like range proofs, pseudo outputs and output public keys where HMAC is enough.
 
