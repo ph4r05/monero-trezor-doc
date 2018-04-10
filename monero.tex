@@ -418,7 +418,7 @@ In the protocol description context $H$ represents a host and $T$ represents Tre
 		\item $T$: Store the range proofs.
 	\end{enumerate}
 	
-	\item $H \rightarrow T$: Request the signed transaction $T_{clear}$
+	\item $H \rightarrow T$: Request the signed transaction $T$
 	\begin{enumerate}
 		\item $T$: Transaction sanity check
 		
@@ -429,7 +429,7 @@ In the protocol description context $H$ represents a host and $T$ represents Tre
 		\item $T$: Perform RingCT signatures on inputs $T_{in}$ (signs also the transaction prefix (inputs, outs, tsx pub key $R$, outputs range proofs, commitments)) with the $x_{in}$ and the key image $I_{in}$.
 	\end{enumerate} 
 	
-	\item $T \rightarrow H$: Return the signed transaction $T_{clear}$.
+	\item $T \rightarrow H$: Return the signed transaction $T$.
 \end{enumerate}
 %\improvement[inline]{Finish decription}
 
