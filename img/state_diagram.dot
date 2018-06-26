@@ -1,0 +1,57 @@
+digraph finite_state_machine {
+	rankdir=LR
+	
+ 	
+	
+		init_tsx [label="Init"]
+    	set_final [label="Final", peripheries=2]
+    
+	    inp_cnt [label="UTXO count"]
+    	set_signature [label="Signature"]
+    
+		precomp [label="Sub-address precomp."]
+		set_final_message_done [label="Final message"]
+	
+	    input [label="UTXO", group="d"]
+	    set_range_proof [label="Range-proof", group="d"]
+		
+    	input_done [label="UTXO done"]
+    	set_pseudo_out  [label="Pseudo-out"]
+    	
+    input_permutation [label="UTXO perm"]
+    input_vins [label="UTXO vin[i]"]
+    
+    set_output  [label="Output"]
+    set_output_done [label="Output done"]
+    
+    
+
+	init_tsx -> inp_cnt
+	inp_cnt -> precomp
+	precomp -> input
+	input -> input
+	input -> input_done
+	input_done -> input_permutation
+	input_permutation -> input_vins
+	input_vins -> input_vins
+	input_vins -> set_output
+	set_output -> set_output
+	set_output -> set_output_done
+	set_output_done -> set_pseudo_out
+	set_pseudo_out -> set_pseudo_out
+	set_pseudo_out -> set_range_proof
+	set_output_done -> set_range_proof
+	set_range_proof -> set_range_proof
+	set_range_proof -> set_final_message_done
+	set_final_message_done -> set_signature
+	set_signature -> set_signature
+	set_signature -> set_final
+	
+	//{rank="same"; init_tsx, inp_cnt, precomp, input, input_done, input_permutation, input_vins }
+	//{rank="same"; set_output, set_output_done, set_pseudo_out, set_range_proof, set_final_message_done, set_signature, set_final }
+	
+	//{rank="same"; init_tsx }
+	//{rank="same"; set_output, set_output_done}
+	
+	
+}
