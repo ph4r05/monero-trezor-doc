@@ -3,7 +3,7 @@
 This repository contains proposal of the monero integration to the Trezor.
 
 Read-only overleaf link:
-https://www.overleaf.com/read/nrtrmfpdcpzb
+https://www.overleaf.com/read/bjxshqkrngcy
 
 # Related projects
 
