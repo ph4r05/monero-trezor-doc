@@ -528,15 +528,24 @@ The \emph{rctSigBase} has the following structure with respect to the hashing:
 struct rctSigBase {
   uint8_t type;
   xmr_amount txnFee;
-  std::vector<key> pseudoOuts;      // from inputs
-  std::vector<ecdhTuple> ecdhInfo;  // from outputs
-  std::vector<ctkey> outPk;         // from outputs
+  std::vector<key> pseudoOuts;      // input amount commitment
+  std::vector<ecdhTuple> ecdhInfo;  // outputs enc (value, mask)
+  std::vector<ctkey> outPk;         // outputs (dst_key, commitment)
 }
 \end{lstlisting}
 
 Unfortunately the structure \emph{rctSigBase} cannot be hashed incrementally in one pass (i.e., as inputs and outputs are processed) as it hashes whole vectors. Namely all \emph{ecdhInfo} have to be hashed from all outputs, then all \emph{outPk}. Fortunately, the ordering of the message fields is appropriate as it minimizes the memory needed to compute the hashing. The \emph{type} and \emph{fee} fields are initialized in when protocol starts. \emph{pseudoOuts} are hashed incrementally as inputs are processed. \emph{ecdhInfo} are hashed incrementally as outputs are processed and \emph{outPk} is stored to the transaction state. It is hashed after all outputs are processed. The field ordering is beneficial because \emph{ecdhInfo} is not needed after hashing anymore while \emph{outPk} is used in the signing.
 
 The \emph{rangeSigs} structure can be hashed incrementally, one transaction output at a time so the range proof is hashed during creation.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\textwidth,clip, angle=0]{img/premlsag_hash.pdf}
+	\caption{PreMlsagHash computation.}
+\end{figure}
+
+
+VctPseudoOuts is hashed only for RctSimple transaction type. 
 For detailed structure definitions please refer to the Appendix \ref{sec:structs}. 
 
 \subsection{Data offloading}
@@ -623,6 +632,11 @@ The range proof consists of Borromean signature and an array of 32~B commitments
 
 \paragraph{Bulletproof range proof.} The offloading mechanism is very similar to the Borromean range proof. The random mask is generated in the Trezor. The commitment is recomputed in the Trezor to make sure it was not tampered with (simple computation step with amount and mask). 
 However, by switching to Bulletproof the range proof size for 2 outputs is reduced roughly from 12~352~B to 2~500~B as Bulletproof signs all outputs with a single signature. The size increases only logarithmically with respect to the number of output transactions. The offloading is not required with Bulletproof if the number of output transactions is small \cite{Bnz2017BulletproofsSP}.
+
+\subsubsection{Batched Bulletproof} 
+In the new Monero fork the batched Bulletproofs are implemented. Batched Bulletproofs are ZK proofs about multiple statements in one proof. The size increase is logarithmic in the number of statements. Statement is a range proof about the transaction output value. By batching one proof can cover the whole transaction.
+
+For example BP for one transaction output L, R fields have 6 scalars. BP for two transaction outputs has 7 scalars in L, R fields.
 
 \subsection{Subdivided protocol overview}
 
