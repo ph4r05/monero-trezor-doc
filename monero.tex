@@ -702,19 +702,19 @@ In order to hide a commitment mask \verb|gamma| from the host the BP generation 
 		
 		\State \Comment{Compute A}
 		\State $aL, aR \gets \text{expandAmount}(amounts)$
-		\State $\alpha \gets \text{randScalar}()$
+		\State $\alpha \gets \text{detScalar}()$
 		\State $A \gets 8^{-1} \left( \alpha G + \sum_{i=0}^{MN-1} aL \cdot Gi_i + aR \cdot Hi_i\right) $
 		
 		\State \Comment{Compute S}
 		\State $sL, sR \gets \text{deterministicMasks}()$	
-		\State $\rho \gets \text{randScalar}()$
+		\State $\rho \gets \text{detScalar}()$
 		\State $S \gets 8^{-1} \left( \rho G + \sum_{i=0}^{MN-1} sL \cdot Gi_i + sR \cdot Hi_i\right) $
 		
 		\State \Comment{Compute y, z, taux}
 		\State $y \gets H(H_s(V), A, S)$
 		\State $z \gets H_s(y)$		
-		\State $\tau_1 \gets \text{randScalar}()$
-		\State $\tau_2 \gets \text{randScalar}()$
+		\State $\tau_1 \gets \text{detScalar}()$
+		\State $\tau_2 \gets \text{detScalar}()$
 		
 		\State $x \gets \text{bp\_func}(z, \tau_1, \tau_2, t_1, t_2)$ \Comment{Complex computation}
 		\State $\tau_x \gets \tau_1 x + \tau_2 x^2 + \sum_{i=0}^{M} \gamma_i z^{i+2}$
