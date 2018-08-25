@@ -638,15 +638,17 @@ The range proof consists of Borromean signature and an array of 32~B commitments
 By switching to Bulletproof the range proof size for 2 outputs is reduced roughly from 12~352~B to 2~500~B as Bulletproof signs all outputs with a single signature. The offloading is not required with Bulletproof if each output transaction has own Bulletproof \cite{Bnz2017BulletproofsSP}. However, if batched bulletproof are used the memory requirements for the computations increase so it cannot be computed on the device anymore. 
 
 \paragraph{Batched Bulletproof} 
-In the new Monero fork the batched Bulletproofs are implemented. Batched Bulletproofs are ZK proofs about multiple statements in a single proof. The proof size increase is logarithmic in the number of statements and statement sizes. Statement is a range proof about the transaction output value. Batching can cover the whole transaction with one BP.
+In the new Monero fork the batched Bulletproofs are implemented. Batched Bulletproofs are ZK proofs about multiple statements in a single proof. The proof size increase is logarithmic in the number of statements and statement sizes. Statement is a range proof about the transaction output value. Batching can cover the whole transaction with one BP. Note the BP can prove $2^x$ statements so if transaction has 5 statements the BP proof is of equal size as for 8 statements.
 
-For example BP for one transaction output L, R fields have 6 scalars. BP for two transaction outputs has 7 scalars in L, R fields so space saved is significant. Verification times are also better for batched Bulletproofs.
+Log example: BP for one transaction output, L, R fields have 6 scalars. BP for two transaction outputs has 7 scalars in L, R fields so space saved is significant. Verification times are also better for batched Bulletproofs.
 
 Here follows Bulletproof transaction types:
 \begin{itemize}
-	\item {\it RangeProofPaddedBulletproof} This aggregates all transaction outputs to a single BP for the whole transaction. It is a default choice in the \verb|wallet2| for BP type if transaction.
-	\item {\it RangeProofMultiOutputBulletproof} BP batching $2^x$ outputs up to the upper bound $16$. Transaction can have multiple BP of this type so probably intended to use with many transaction outputs.
-	\item {\it RangeProofBulletproof} One BP per transaction output. In the current version it is used only for transactions with one output which is technically the same as {\it RangeProofPaddedBulletproof}.
+	\item {\it RangeProofPaddedBulletproof}: This aggregates all transaction outputs to a single BP for the whole transaction. It is a default choice in the \verb|wallet2| for BP type if transaction. BP can currently aggregate at most $16$ transaction outputs (constant, technically could go bigger but memory allocations would grow). Padded means the BP is padded with dummy statements to the next power of two.
+	
+	\item {\it RangeProofMultiOutputBulletproof}: BP batching $2^x$ outputs up to the upper bound $16$. Transaction can have multiple BP of this type so it can effectivelly prove certain amounts of statements. E.g. 9 are with 1 BP for 8 statements and 1 BP for 1 statements. In the previous case BP for 16 statements would have to be used.
+	
+	\item {\it RangeProofBulletproof}: One BP per transaction output. In the current version it is used only for transactions with one output which is technically the same as {\it RangeProofPaddedBulletproof}.
 \end{itemize}
 
 \paragraph{Offloading} As the batched version allocates several 32~B key vectors of size $M\cdot N  = numOutputs \cdot 64$ the computation in the constrained environment is problematic for transaction with 2 and more outputs so offloading is necessary. Note the output value mask commitment $a_i$ is denoted \verb|$gamma_i$|.
