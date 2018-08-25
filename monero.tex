@@ -584,10 +584,15 @@ a[i] &= KDF(k_{msk,idx} \; || \; i \;) \; \text{mod} \; l  \\
 The key $k_{msk,idx}$ is created separately so it can be passed to the host for deterministic mask generation (if needed) without compromising the mask key $k_{msk}$.
 The mask pre-image has to be unique so the value does not repeat and is not predictable. This scheme works in the random oracle model. The similar approach is used in Fiat-Shamir heuristic, in zero knowledge proofs. The output of a $H(\cdot)$ / Keccak-256 is assumed to be indistinguishable from a truly random number stream. The building block $H$ can be simply replaced by AES-CTR which is also commonly used as the PRNG. Mask are 32 B values while AES has 16 B block thus two encrypted blocks are needed to generate one mask. 
 
+Usually, the masks are consumed sequentially during processing so another optimization is possible. To speed-up the mask generation a fast stream cipher can be used, i.e., it's \emph{keystream} output. By using e.g., \emph{Chacha20} one can get better performance for sequentially consumed masks by using key stream directly. 
+
+This approach can be implemented easily using polymorphism on item access. Vector object defines \\ \verb|__getitem__(self, item)| method which dynamically computes mask from the internal state. For the sequentially accessed masks it can reset the keystream if the index is zero. In this way the object behaves like normally generated mask so there are no changes to the other parts needed. 
+
+
 \subsection{Range proof offloading}
 Range proof could be potentially offloaded to the host to reduce computation time and the RAM consumption.
 The offloading is mainly motivated by the fact it makes up the significant portion of the transaction (per output) in size. The simplest Monero transactions with only two input and two outputs (change address) have around 
-13.2~kB where the range proof constitutes about 12~kB from the total size.\footnote{\url{https://getmonero.org/2017/12/07/Monero-Compatible-Bulletproofs.html}}
+13.2~kB where the range proof constitutes about 12~kB from the total size for Borromean range proof. \footnote{\url{https://getmonero.org/2017/12/07/Monero-Compatible-Bulletproofs.html}}
 
 Range proofs are computationally expensive and not using any account or transaction secrets. Offloading thus poses no additional security risk in the current attacker model. However, if the attacker generates masks in a predictable way it could lead to leaking amount being sent from the range proof stored on blockchain. This poses potential privacy risk as the attacker could potentially prove the amount to a third party from the blockchain (e.g., for court). The attacker on its own already knows the amount as the output addresses and amounts are entered on the attacker-controlled host.
 
