@@ -655,9 +655,9 @@ Here follows Bulletproof transaction types:
 
 The BP has the following structure:
 \begin{itemize}
-	\item Scalars \verb|A, S, T1, T2, taux, mu, a, b, t|
+	\item Points/scalars \verb|A, S, T1, T2, taux, mu, a, b, t|
 	\item Vector of commitments \verb|V| of size $M$
-	\item Vector of scalars \verb|L, R| of size $log(MN)$
+	\item Vector of points \verb|L, R| of size $log(MN)$
 \end{itemize}
 
 \paragraph{Secure offloading} is perfomed in the following way:
@@ -697,7 +697,7 @@ As seen from the algorithm \ref{alg:bp_mask} it is not triviall to hide a commit
 \begin{algorithm}[H]
 	\caption{Pseudocode of the first BP part. $\gamma$ is used only in the formulas in the algorithm. Value $x$ is result of a complex computation from the amount and constant values. } \label{alg:bp_mask}
 	\begin{algorithmic}[1]
-		\Function{Bulletproof}{$amounts, \gamma$}
+		\Function{BulletproofPrefix}{$amounts, \gamma$}
 		\State \Comment{BP: $(V, A, S, T1, T2, \tau_x, \mu, L, R, a, b, t)$}
 		\State $Gi_j \gets \text{getExponent}(H, 2j + 1)$ \Comment{Precomputed const}	
 		\State $Hi_j \gets \text{getExponent}(H, 2j)$ \Comment{Precomputed const}	
