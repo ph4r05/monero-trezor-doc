@@ -19,6 +19,9 @@
 \usepackage{xpatch}
 \algrenewcommand\alglinenumber[1]{{\sffamily\footnotesize#1}}
 
+\newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor}
+\newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
+
 
 % TODO packages
 % https://tex.stackexchange.com/questions/9796/how-to-add-todo-notes
@@ -719,6 +722,7 @@ As seen from the algorithm \ref{alg:bp_mask} it is not trivial to hide a commitm
 		\State \Comment{Vectors $l_0, l_1, r_0, r_1$ have $MN$ elements}
 		\State $l_0 \gets aL - z$
 		\State $l_1 \gets sL$
+		\State $zt[i] \gets z^{2 + \floor{i/N}} 2^{i \% N}$
 		\State $r_0[i] \gets ((aR + z)[i] * y^{i}) + zt[i]$
 		\State $r_1[i] \gets sR[i] * y^{i}$
 		\State $t_1 \gets (l_0 \cdot r_1) + (l_1 \cdot r0)$ \Comment{$t_1, t_2$ Computed simultaneously in one pass}
