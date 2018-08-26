@@ -1028,20 +1028,28 @@ Due to the \emph{final\_message} hash structure it is not possible to incrementa
 Mainly due to the reasons given in the section \ref{sec:bp} it is needed to offload the range signature to the host, especially if batched Bulletproofs are used. Single Borromean and Bulletproof can be generated on the Trezor which simplifies the protocol. If computation on the Trezor cannot be done the offloading has to be employed. 
 Several different offloading mechanisms have been described. We aim for the general protocol design so it can carry out different possible offloading. 
 
-The main idea: after all inputs are set the total mask sum is computed so Trezor can compute commitment masks for the outputs and further output parameters. Thus after finishing the input phase the Trezor instructs host about the range sig parameters. This requires a new message. If the range sig offloading strategy allows the host can compute rangesig directly and send it with the \emph{MoneroTransactionSetOutputRequest} message. If the offloading is more complicated there can be several rsig roundtrips. For the purpose of offloading we define a new general message \emph{MoneroRsigData}:
+The main idea: 
+\begin{itemize}
+	\item After all inputs are set, the total mask sum is computed, the Trezor can compute commitment masks for the outputs and further output and range sig parameters.
+	A new roundtrip is thus added where Trezor instructs host about the range sig parameters. This requires a new message roundtrip. 
+	
+	\item If the range sig offloading strategy allows it, the host can compute rangesig directly and send it with the \emph{MoneroTransactionSetOutputRequest} message. 
+	
+	\item If the offloading is more complicated, host sends \emph{MoneroTransactionSetOutputRequest} message as normally. The response contains \emph{MoneroRsigData} message. It can contain partially computed rsig. If necessary there may be several \emph{MoneroRsigData} roundtrips until whole rsig is computed. After the computation the Trezor has rsig hash so it can finish computation of the pre MLSAG hash required for the signature.
+\end{itemize} 
+
+For the purpose of offloading we define a new general message \emph{MoneroRsigData}:
 
 \begin{lstlisting}
 message MoneroRsigData {
-	optional uint32 version = 1;
-	optional uint32 step = 2;
-	optional bytes seed = 3;   // determ. mask seed
-	optional bytes mask = 4;   // commitment mask vector
-	optional bytes amount = 5; // commitment amount vector
-	optional bytes V = 6;      // commitment vector
-	optional bytes rsig = 7;   // range sig, full or partial
-	optional bytes x = 8;      // x from BP
-	optional bytes tauxp = 9;  // computed tau
-	repeated MoneroTransactionDestinationEntry outputs = 10;
+  optional uint32 version = 1;
+  optional uint32 step = 2;
+  optional uint64 operation = 3;
+  optional bytes seed = 4;   // determ. mask seed
+  optional bytes mask = 5;   // mask vector
+  optional bytes amount = 6; // amount vector
+  optional bytes rsig = 7;   // range sig, full or partial
+  repeated MoneroTransactionDestinationEntry outputs = 8;
 }
 
 \end{lstlisting}
