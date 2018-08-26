@@ -756,6 +756,8 @@ The current Python implementation uses several optimizations to reduce the memor
 	
 	\item Vectors with sequential element access (basically most of them) are evaluated on the fly if the CPU overhead is acceptable and the memory required is constant in the sequential access, e.g., if $x_i = op(x_{i-1}, \text{constData})$. On $x_0$ access the state is reset. This is useful for vector of powers of some constant element $c$.
 	
+	\item Some constant vectors are precomputed for some prefix, matching BP size of 2 or 4 statements. If the higher index is accessed it is computed on the fly. Vectors precomputed in this way are \verb|GI, HI, TWO_N|. In case of vector of powers of 2 the precomputed part is re-used to compute the result. One such vector is $maxM \cdot 64\cdot32$~B long and frozen in the flash.
+	
 	\item Slices of vectors are computed as constant views to existing wrapped vector, memory overhead $O(1)$.
 	
 	\item Optimizations can be chained if the operations does not have conflicting dependencies. So typically unary operations or x-arry operations with constants / non-conflicting dependencies.
@@ -764,7 +766,25 @@ The current Python implementation uses several optimizations to reduce the memor
 
 It is also required to reduce memory allocations so the heap framentation is minimized. For this purpose all computations reuse statically allocated buffers / vectors.
 
-By using these tricks it is possible to compute a bit larger BPs on the Trezor but the computation time would be rather high. In the current setup BP with one output takes 13 seconds, with two outputs 22 seconds to generate and uses 20 kB and 40 kB of RAM respectivelly. The memory complexity is currently $4MN \cdot 32~B$, due to data dependencies. Verification algorithm is memory optimized and runs with $O(max(lg(N), M))$ memory.
+By using these tricks it is possible to compute a bit larger BPs on the Trezor but the computation time would be rather high. The memory complexity is currently $(4MN \cdot 32) + O(max(lg(N), M))$, due to data dependencies. Verification algorithm is memory optimized and runs with $O(max(lg(N), M))$ memory.
+
+\begin{table}[H]
+	\begin{center}
+	\begin{tabular}{p{3.5cm} rrrrr}
+		\hline
+		Prover outputs    & 1         & 2       & 4      & 8      & 16      \\ \hline
+		Time (s)          & 10.2      & 18.4    & 34.6   &      - &       - \\
+		RAM min (B)       &  8 192    & 16 384  & 32 768 & 65 536 & 131 072 \\
+		RAM (B)           & 17 088    & 27 520  & 48 704 &      - &       - \\ \hline\hline
+		
+		Verifier outputs  & 1         & 2       & 4      & 8      & 16     \\ \hline
+		Time (s)          & 3.25      & 6.15    & 11.96  & 25.74  & 53.53  \\
+		RAM (B)           & 11 280    & 12 400  & 13 424 & 16 336 & 17 680 \\ \hline
+		
+	\end{tabular}
+	\end{center}
+	\caption{BP performance on the Trezor. Computation times for $M > 4$ are higher as the precomputed vectors are only up to the $4$ statements and the rest of the used vector has to be computed additionally. }
+\end{table}
 
 \paragraph{Monero C++ implementation note} There are several interesting optimizations in the Monero BP code:
 \begin{itemize}
