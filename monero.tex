@@ -769,7 +769,7 @@ It is also required to reduce memory allocations so the heap framentation is min
 By using these tricks it is possible to compute a bit larger BPs on the Trezor but the computation time would be rather high. The memory complexity is currently $(4MN \cdot 32) + O(max(lg(N), M))$, due to data dependencies. Verification algorithm is memory optimized and runs with $O(max(lg(N), M))$ memory.
 
 \begin{table}[H]
-	\begin{center}
+	\caption{BP performance on the Trezor. Test were run with precomputed vectors for $4$ statements. Statements 8 and 16 were not computed due to low amount of RAM.}	\begin{center}
 	\begin{tabular}{p{3.5cm} rrrrr}
 		\hline
 		Prover outputs    & 1         & 2       & 4      & 8      & 16      \\ \hline
@@ -783,7 +783,6 @@ By using these tricks it is possible to compute a bit larger BPs on the Trezor b
 		
 	\end{tabular}
 	\end{center}
-	\caption{BP performance on the Trezor. Computation times for $M > 4$ are higher as the precomputed vectors are only up to the $4$ statements and the rest of the used vector has to be computed additionally. }
 \end{table}
 
 \paragraph{Monero C++ implementation note} There are several interesting optimizations in the Monero BP code:
