@@ -751,7 +751,7 @@ The current Python implementation uses several optimizations to reduce the memor
 
 It is also required to reduce memory allocations so the heap framentation is minimized. For this purpose all computations reuse statically allocated buffers / vectors.
 
-By using these tricks it is possible to compute even large BPs on the Trezor but the computation time would be rather high. In the current setup BP with one output takes 13 seconds, with two outputs 22 seconds to generate and uses 20 kB and 40 kB of RAM respectivelly.
+By using these tricks it is possible to compute a bit larger BPs on the Trezor but the computation time would be rather high. In the current setup BP with one output takes 13 seconds, with two outputs 22 seconds to generate and uses 20 kB and 40 kB of RAM respectivelly. The memory complexity is currently $4MN \cdot 32~B$, due to data dependencies. Verification algorithm is memory optimized and runs with $O(1)$ memory.
 
 \paragraph{Monero C++ implementation note} There are several interesting optimizations in the Monero BP code:
 \begin{itemize}
