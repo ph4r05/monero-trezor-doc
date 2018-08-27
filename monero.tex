@@ -774,40 +774,46 @@ By using these tricks it is possible to compute a bit larger BPs on the Trezor b
 	\begin{tabular}{p{3.5cm} rrrrr}
 		\hline
 		Prover outputs    & 1         & 2       & 4      & 8      & 16      \\ \hline
-		Time (s)          & 10.2      & 18.4    & 34.6   &      - &       - \\
-		RAM min (B)       &  8 192    & 16 384  & 32 768 & 65 536 & 131 072 \\
-		RAM (B)           & 17 088    & 27 520  & 48 704 &      - &       - \\ \hline\hline
+		Time (s)          & 10.05     & 18.08   & 34.24  &      - &       - \\
+		RAM min (B)       & 8 192     & 16 384  & 32 768 & 65 536 & 131 072 \\
+		RAM (B)           & 12 704    & 21 056  & 38 112 &      - &       - \\ 
+		Proof size (B)    &           &         &        &        &         \\
+		\hline\hline
 		
 		Verifier outputs  & 1         & 2       & 4      & 8      & 16     \\ \hline
-		Time (s)          & 3.25      & 6.15    & 11.96  & 25.74  & 53.53  \\
-		RAM (B)           & 11 280    & 12 400  & 13 424 & 16 336 & 17 680 \\ \hline
+		Time (s)          & 3.18      & 6.07    & 12.00  & 25.36  & 52.45  \\
+		RAM (B)           & 9 216     & 9 920   & 7 760  & 8 864  & 10 496 \\ \hline
 		
 	\end{tabular}
 	\end{center}
 \end{table}
 
-Table \ref{tbl:alloc} show memory consumption of certain objects in the memory in the Micropython / Trezor. 
-From the obvious reasons we allocate vectors as continuous bytearray and using \verb|memoryview| to access particular portions of the memory. The \emph{KeyVector} implements accessors \verb|__getitem__|, \verb|__setitem__|, \verb|__len__| and iterator interface so it is usable just like ordinary array.
-
-Points are stored in the Extended Edwards form, thus as a quadruple $(X, Y, Z, T)$, each element is a $\mathbb{F}_{2^{255}-19}$ number stored in $25.5$ base in 10 limbs of 4 bytes. From the table \ref{tbl:alloc} it is obvious that it is not feasible to store points in the unpacked form as the memory needed is $5.6$ times higher compared to the continuous memory region storing compressed form of $32$~B, which stores just $y$ coordinate + parity of the $x$ coordinate. Each operation has to perform compression and decompression.
-
-Scalars are 256 bit numbers working modulo curve order, internally represented as 9 limbs of 4 Bytes so there are two overflow bits in each limb for easier computation. Obviously, storing each scalar separately in the vector is expensive as there is a python object overhead for each scalar, the memory consumption is $1.68$ times higher compared to continuous memory region.
-
+\paragraph{Memory optimizations}
 
 \begin{table}[H]
 	\caption{Allocation object overheads in Trezor / Micropython.}\label{tbl:alloc}
 	\begin{center}
-	\begin{tabular}{p{4.5cm} rrr}
-		\hline
-		Allocation type                      & Lower bound  & Allocated  &  Overhead   \\ \hline
-		$5 \times (64 \cdot 32)$~B bytearray & 	10 240 B    & 10 320 B   &  0.78 \%    \\          
-		$5 \times 64 \times 32$~B bytearray  &  10 240 B    & 17 424 B   &  70.15 \%      \\ 
-		$5 \times 64$ Ed25519 scalars        &  11 520 B    & 17 376 B   &  50.83 \%      \\ 
-		$5 \times 64$ Ed25519 points    &  51 200 B    & 58 384 B   &  14.03 \%      \\ 
-				
-	\end{tabular}
+		\begin{tabular}{p{4.5cm} rrr}
+			\hline
+			Allocation type                      & Lower bound  & Allocated  &  Overhead   \\ \hline
+			$5 \times (64 \cdot 32)$~B bytearray & 	10 240 B    & 10 320 B   &  0.78 \%    \\          
+			$5 \times 64 \times 32$~B bytearray  &  10 240 B    & 17 424 B   &  70.15 \%      \\ 
+			$5 \times 64$ Ed25519 scalars        &  11 520 B    & 17 376 B   &  50.83 \%      \\ 
+			$5 \times 64$ Ed25519 points    &  51 200 B    & 58 384 B   &  14.03 \%      \\ 
+			
+		\end{tabular}
 	\end{center}
 \end{table}
+
+Table \ref{tbl:alloc} shows memory consumption of certain objects in the memory in the Micropython / Trezor. Apparently, it is way more effective to allocate continouos regions of memory for scalar / point vectors instead of allocating vectors of objects so memory consumption is kept within practical boundaries. 
+
+The generic approach is to allocate a large continuous \verb|bytearray| and use the \verb|memoryview| to access particular portions of the memory corresponding to the item index. The \emph{KeyVector} implements accessors \verb|__getitem__|, \verb|__setitem__|, \verb|__len__| and iterator interface so it is usable just like ordinary array.
+However, each access leads to \verb|memoryview| allocation which can cause significant heap allocation overhead fragmentation when computing with large vectors. From this reason, KeyVectors implement also \verb|to(idx, buffer, offset)| method which copies item on the given index to the provided buffer at given offset (or default item buffer is used if buffer is empty); and similar method \verb|read|. Memoryview saves memory copying on item access but memoryview instance creation and garbage collection after use is more CPU intensive than simple 32 B memcopy.
+
+\paragraph{Primitives in memory}
+\emph{Points} are stored in the Extended Edwards form, thus as a quadruple $(X, Y, Z, T)$, each element is a $\mathbb{F}_{2^{255}-19}$ number stored in $25.5$ base in 10 limbs of 4 bytes. From the table \ref{tbl:alloc} it is obvious that it is not feasible to store points in the unpacked form as the memory needed is $5.6$ times higher compared to the continuous memory region storing compressed form of $32$~B, which stores just $y$ coordinate + parity of the $x$ coordinate. Each operation has to perform compression and decompression.
+
+\emph{Scalars} are 256 bit numbers working modulo curve order, internally represented as 9 limbs of 4 Bytes so there are two overflow bits in each limb for easier computation. Obviously, storing each scalar separately in the vector is expensive as there is a python object overhead for each scalar, the memory consumption is $1.68$ times higher compared to continuous memory region.
 
 \paragraph{Monero C++ implementation note} There are several interesting optimizations in the Monero BP code:
 \begin{itemize}
