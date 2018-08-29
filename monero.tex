@@ -552,7 +552,8 @@ The \emph{rangeSigs} structure can be hashed incrementally, one transaction outp
 \end{figure}
 
 
-VctPseudoOuts is hashed only for RctSimple transaction type. 
+VctPseudoOuts is hashed only for RctSimple transaction type. There are two different UTXO signature schemes, \emph{full} and \emph{simple}. The Full scheme is only used with single UTXO and only with Borromean range signatures. Otherwise the simple mode is used. The VctPseudoOuts is hashed only in the simple mode with the Borromean range signature. The simple mode with Bulletproofs has stored pseudo outputs in the prunnable part of the signature thus it is not hashed. 
+
 For detailed structure definitions please refer to the Appendix \ref{sec:structs}. 
 
 \subsection{Data offloading}
