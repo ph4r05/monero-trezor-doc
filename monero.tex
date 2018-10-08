@@ -396,7 +396,6 @@ Let $H$ be a cryptographic hash function $H : \{0,1\}^* \rightarrow \{0,1\}^{256
 \paragraph{State:}
 Trezor holds a transaction state:
 \begin{itemize}
-	\item Global transaction counter $c_{tsx}$
 	\item Transaction data (inputs, outputs, $(r,R)$, range proofs, signatures, $\dots$)
 	\item Transaction cryptographic material: master key $k_{mst}$, base HMAC key $k_{hmac}$
 \end{itemize}
@@ -410,9 +409,7 @@ In the protocol description context $H$ represents a host and $T$ represents Tre
 	\begin{enumerate}
 		\item $T$: Reset the Trezor transaction state, store $TsxData$.
 		
-		\item $T$: Generate $(r, R)$, transaction key-pair.
-		
-		\item $T$: Increment Trezor transaction counter $c_{tsx}$,
+		\item $T$: Generate $(r, R)$, transaction key-pair.		
 	\end{enumerate}
 	
 	\item $H \rightarrow T$: Set inputs to spend + loaded fakes $T_{in}$. 
@@ -569,7 +566,7 @@ The private offloaded data have to be also encrypted so the protocol does not le
 To protect the transaction components integrity and ordering of the offloaded fields they are HMACed with the unique-purpose key so information from different protocol step cannot be reused. Key is constructed as follows:
 \begin{equation}
 \begin{split} \label{eq:det_mask}
-k_{mst} &= \textit{KDF}(TsxData \; || \; r \; || \; c_{tsx} \; || \; \text{rand\_nonce})\\
+k_{mst} &= \textit{KDF}(TsxData \; || \; r \; || \; \text{rand\_nonce})\\
 k_{hmac} &= \textit{KDF}\left(\text{"hmac"} \; || \; k_{mst}\right)\\
 k &= \textit{KDF}(k_{hmac} \; || \; \text{"txoutres"} \; || \; i)
 \end{split}
@@ -849,7 +846,7 @@ The subdivided protocol description follows:
 \begin{enumerate}
 	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin, fee, account\_id, minor\_indices).
 	\begin{enumerate}
-		\item Generate transaction master key $k_{mst} =  \textit{KDF}(TsxData \; || \; r \; || \; c_{tsx} \; || \; \text{rand\_nonce})$.
+		\item Generate transaction master key $k_{mst} =  \textit{KDF}(TsxData \; || \; r \; || \; \text{rand\_nonce})$.
 		
 		\item Generate HMAC key $k_{hmac} = \textit{KDF}\left(\text{"hmac"} \; || \; k_{mst}\right)$
 		
