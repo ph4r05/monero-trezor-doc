@@ -5,6 +5,11 @@ This repository contains proposal of the monero integration to the Trezor.
 Read-only overleaf link:
 https://www.overleaf.com/read/bjxshqkrngcy
 
+# Donations
+Thanks for your support!
+
+47BEukN83whUdvuXbaWmDDQLYNUpLsvFR2jioQtpP5vD8b3o74b9oFgQ3KFa3ibjbwBsaJEehogjiUCfGtugUGAuJAfbh1Z
+
 # Related projects
 
 - [monero-agent]
