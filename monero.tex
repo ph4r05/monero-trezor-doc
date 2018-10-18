@@ -911,10 +911,10 @@ The subdivided protocol description follows:
 		
 		\item Finalize incremental hashing of transaction prefix: hash $\text{out\_pk}_i$ from state. 
 		
-		\item Return transaction prefix hash, tx.extra, initial \emph{RctSig} structure
+		\item Finalize incremental hashing of the full message hash (pre-MLSAG hash).
+		
+		\item Return transaction prefix hash, tx.extra, initial \emph{RctSig} structure, \emph{full\_message\_hash}
 	\end{enumerate} 
-
-	\item $H \rightarrow T$: Get full message hash. Trezor returns \emph{full\_message\_hash}.
 	
 	\item $H \rightarrow T$: RingCT Sign $T_{in}$. Send all transaction inputs $T_{in}$, one by one, with hmacs, pseudo output, alpha.
 	\begin{enumerate}
@@ -1106,7 +1106,7 @@ message MoneroRsigData {
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.8\textwidth,,trim={0 3cm 0 1cm},clip, angle=0]{img/subdivided_rsig.pdf}
+	\includegraphics[width=0.8\textwidth,,trim={0 5cm 0 1cm},clip, angle=0]{img/subdivided_rsig.pdf}
 	\caption{Extended protocol with range sig offloading}
 \end{figure}
 
