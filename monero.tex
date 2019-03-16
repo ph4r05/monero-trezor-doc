@@ -1,7 +1,7 @@
 \documentclass[]{article}
 \usepackage[T1]{fontenc}
 \usepackage[margin=3cm]{geometry}
-\usepackage{biblatex}
+\usepackage[backend=biber,style=alphabetic,sorting=ynt]{biblatex}
 \usepackage{url}
 \usepackage[breaklinks=true]{hyperref}
 \usepackage{float}
@@ -1726,7 +1726,7 @@ struct multisig_tx_set {
 
 % References
 %\renewcommand*{\bibfont}{\footnotesize}
-\printbibliography[heading=bibintoc] 
+\printbibliography%[heading=bibintoc] 
 
 %\bibliography{monero}{}
 %\bibliographystyle{plain}	
