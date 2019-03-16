@@ -1,7 +1,7 @@
 \documentclass[]{article}
 \usepackage[T1]{fontenc}
 \usepackage[margin=3cm]{geometry}
-\usepackage{cite}
+\usepackage{biblatex}
 \usepackage{url}
 \usepackage[breaklinks=true]{hyperref}
 \usepackage{float}
@@ -21,7 +21,7 @@
 
 \newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor}
 \newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
-
+\addbibresource{monero.bib}
 
 % TODO packages
 % https://tex.stackexchange.com/questions/9796/how-to-add-todo-notes
@@ -33,6 +33,12 @@
 \newcommandx{\info}[2][1=]{\todo[linecolor=OliveGreen,backgroundcolor=OliveGreen!25,bordercolor=OliveGreen,#1]{#2}}
 \newcommandx{\improvement}[2][1=]{\todo[linecolor=Plum,backgroundcolor=Plum!25,bordercolor=Plum,#1]{#2}}
 \newcommandx{\thiswillnotshow}[2][1=]{\todo[disable,#1]{#2}}
+
+\usepackage{tikz}  % has to be loaded after xcolor and todonotes
+\usetikzlibrary{calc}
+
+\usepackage{pgf-umlsd}
+\usepgflibrary{arrows} % for pgf-umlsd
 
 \lstdefinestyle{cstyle}{
 	numbers=none,
@@ -51,7 +57,7 @@
 }
 
 %opening
-\title{Monero wallet Trezor integration draft v0.4.1}
+\title{Monero wallet Trezor integration draft v0.4.2}
 \author{Du\v{s}an Klinec \\{dusan.klinec@gmail.com}}
 
 
@@ -637,6 +643,16 @@ The range proof consists of Borromean signature and an array of 32~B commitments
 \subsection{Bulletproof}\label{sec:bp} The offloading mechanism is very similar to the Borromean range proof. The random mask and the amount commitments \verb|V| are computed in the Trezor to make sure it was not tampered with (simple computation step with amount and mask). 
 By switching to Bulletproof the range proof size for 2 outputs is reduced roughly from 12~352~B to 2~500~B as Bulletproof signs all outputs with a single signature. The offloading is not required with Bulletproof if each output transaction has own Bulletproof \cite{Bnz2017BulletproofsSP}. However, if batched bulletproof are used the memory requirements for the computations increase so it cannot be computed on the device anymore. 
 
+\paragraph{Deterministic masks}
+Since Hardfork 10 deterministic masks were introduced in Monero, as defined in equation \ref{eq:det_mask_hf10}. 
+
+\begin{equation}
+\begin{split} \label{eq:det_mask_hf10}
+  \text{amount\_key}_i &= H_s(\text{derivation} || i)\\
+  \text{mask}_i &= H(\text{"commitment\_mask"} || \text{amount\_key}_i)\\
+\end{split}
+\end{equation}
+
 \paragraph{Batched Bulletproof} 
 In the new Monero fork the batched Bulletproofs are implemented. Batched Bulletproofs are ZK proofs about multiple statements in a single proof. The proof size increase is logarithmic in the number of statements and statement sizes. Statement is a range proof about the transaction output value. Batching can cover the whole transaction with one BP. Note the BP can prove $2^x$ statements so if transaction has 5 statements the BP proof is of equal size as for 8 statements.
 
@@ -651,7 +667,7 @@ Here follows Bulletproof transaction types:
 	\item {\it RangeProofBulletproof}: One BP per transaction output. In the current version it is used only for transactions with one output which is technically the same as {\it RangeProofPaddedBulletproof}.
 \end{itemize}
 
-\paragraph{Offloading} As the batched version allocates several 32~B key vectors of size $M\cdot N  = numOutputs \cdot 64$ the computation in the constrained environment is problematic for transaction with 2 and more outputs so offloading is necessary. Note the output value mask commitment $a_i$ is denoted \verb|$gamma_i$|.
+\paragraph{Offloading} As the batched version allocates several 32~B key vectors of size $M\cdot N  = numOutputs \cdot 64$ the computation in the constrained environment is problematic for transaction with 2 and more outputs so offloading is necessary. Note the output value mask commitment $a_i$ is denoted \verb|gamma_i|.
 
 The BP has the following structure:
 \begin{itemize}
@@ -827,6 +843,11 @@ Batched inversion and fast modular inversion can be ported to Trezor as the RAM 
 
 On the other hand, Strauss and Pippenger optimization have large RAM overhead and is not of practical use for Trezor. Optimization is effective fot the Monero deamon so the transaction verification is very fast and blockchain scanning / synchronization is reasonable fast. In the Trezor usecase the speedup is not that valuable given the CPU/RAM tradeoff limits.
 
+\paragraph{Bulletproof resources}
+\begin{itemize}
+	\item \url{https://medium.com/interstellar/bulletproofs-pre-release-fcb1feb36d4b}
+	\item \citetitle{cryptoeprint:2017:1066} \url{https://eprint.iacr.org/2017/1066.pdf}
+\end{itemize}
 \section{Transaction signing protocol}
 
 The description of the subdivided transaction signing protocol follows.
@@ -1114,6 +1135,82 @@ message MoneroRsigData {
 	\centering
 	\includegraphics[width=1.\textwidth,trim={0 22cm 0 1cm},clip, angle=0]{img/tsx_state_detail_rsig.pdf}
 	\caption{State machine for incremental signing with range sig offloading} \label{fig:detailed_state}
+\end{figure}
+
+\subsection{Hardfork 10+ upgrade}\label{sec:hf10}
+Due to introduction of deterministic masks as defined in the equation \ref{eq:det_mask_hf10} in the hardfork 10, the protocol had to be changed.
+
+\paragraph{Dummy payment ID}
+In order to make all transactions look the same on the blockchain, all transactions now contain payment ID. If the payment ID was not entered by the user, a dummy null payment ID \verb|0x0000000000000000| is encrypted and added to a transaction.
+Long (unencrypted) payment ID is now deprecated.
+
+
+\paragraph{Mask Balancing.}
+The main reason for the protocol change is that the following equation has to hold: $\sum \text{input\_mask}_i = \sum \text{output\_mask}_j$.
+Previously, the mask balancing was done on output masks after all UTXO has been set by the host, i.e., the last output mask was adjusted so the aforementioned equation holds. However, the deterministic output masks caused the balancing has to be done on the input masks.
+
+Now the balancing can be performed after all output masks have been computed, i.e., after all outputs have been computed.
+
+\begin{equation}
+\begin{split} \label{eq:det_mask_hf10_ex}
+\text{amount\_key}_i &= H_s(\text{derivation} || i)\\
+\text{mask}_i &= H(\text{"commitment\_mask"} || \text{amount\_key}_i)\\
+\text{amount\_xor}_i &= H(\text{"amount"} || \text{amount\_key}_i)\\
+\text{amount\_enc}_i &= \text{amount}_i \oplus \text{amount\_xor}_i \;\;\; \textit{(8 Bytes)}\\
+\end{split}
+\end{equation}
+
+\paragraph{ECDH serialization.} The deterministic masks are not needed to be stored in the ECDH info on the blockchain. 
+Thus the ECDH info is serialized only as $\text{amount\_enc}_i$, i.e., 8 Bytes of encrypted amount.
+
+\paragraph{Pseudo output fix.}
+As the balancing is performed on the last input mask after the step 6, the last pseudo output (UTXO commitment) is changed. This change has to be sent to the host. Thus the signing step returns the updated pseudo output value so host can update the stored values and correctly assemble final transaction.
+
+\paragraph{BP Offloading.}
+Deterministic masks affect the BP offloading protocol. Previously, the balancing and thus all output masks has been computed in the step 5 "All inputs set". Now the mask is known only after the transaction destination processing in step 6 as it depends on the particular amount key. Thus step 5 now does not send masks for BP offloading.
+
+The protocol has been modified in the step 6 "Set output". 
+After the output has been processed, the mask is computed (equation \ref{eq:det_mask_hf10_ex}) is sent to the host. After the host has all masks to compute BP for the current batch, it send additional message to the Trezor as part of the step 6 with the flag \verb|is_offloaded_bp| set. The message carries computed BP for the current batch. Trezor checks the BP, hashes it to the pre-mlsag-hash and continues with the protocol.
+
+The example of the message flow for step 6 is depicted in figure \ref{fig:hf10_step6}.
+
+% https://cs.uwaterloo.ca/twiki/view/CrySP/LaTeXSnippets
+\begin{figure}[H]
+\centering
+\begin{sequencediagram}
+  \setlength{\unitlength}{1cm}%
+  \tikzstyle{sequence}=[coordinate]%
+  \tikzstyle{inststyle}=[rectangle, draw, anchor=west, minimum
+	height=0.8cm, minimum width=1.6cm, fill=white, 
+	drop shadow={opacity=1,fill=black}]%
+  \tikzstyle{blockstyle}=[anchor=north west]%
+  \tikzstyle{blockcommentstyle}=[anchor=north west, font=\small]%
+  \tikzstyle{dot}=[inner sep=0pt,fill=black,circle,minimum size=0.2pt]%
+	
+  \newthread{h}{Host}
+  %\newthread[gray]{t}{Trezor}
+  \newinst[4]{t}{Trezor}
+  
+  \begin{sdblock}{Step 6 - Set output}{}
+  
+  \begin{call}{h}{set\_output($o_0$)}{t}{$res_0$, $mask_0$}
+  \end{call}\postlevel
+
+  \begin{call}{h}{set\_output($o_1$)}{t}{$res_1$, $mask_1$}
+  \end{call}\postlevel
+
+  \begin{call}{h}{set\_output($o_2$)}{t}{$res_2$, $mask_2$}
+  \end{call}\postlevel
+
+  \begin{call}{h}{set\_output($o_3$)}{t}{$res_3$, $mask_3$}
+  \end{call}\postlevel
+
+  \begin{call}{h}{set\_bp($BP_0$)}{t}{OK}
+  \end{call}
+  \end{sdblock}
+
+\end{sequencediagram}
+\caption{Sequence diagram for HF10 Step6}\label{fig:hf10_step6}
 \end{figure}
 
 
@@ -1627,8 +1724,10 @@ struct multisig_tx_set {
 \end{lstlisting}
 
 % References
-\bibliography{monero}{}
-\bibliographystyle{plain}
-	
+%\renewcommand*{\bibfont}{\footnotesize}
+\printbibliography[heading=bibintoc] 
+
+%\bibliography{monero}{}
+%\bibliographystyle{plain}	
 \end{document}
 
