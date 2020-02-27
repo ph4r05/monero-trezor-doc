@@ -57,7 +57,7 @@
 }
 
 %opening
-\title{Monero wallet Trezor integration draft v0.4.2}
+\title{Monero wallet Trezor integration draft v0.4.3}
 \author{Du\v{s}an Klinec \\{dusan.klinec@gmail.com}}
 
 
@@ -1240,7 +1240,9 @@ The integration idea is to do minimal modifications to the official Monero codeb
 \paragraph{Watch-only wallet and Trezor client} 
 The wallet having only view key available is called watch-only wallet. It performs the blockchain scanning for the user, stores all UTXO, communicates with the full-node, assembles the transaction inputs for a new transfer but the signatures have to be done in the full-fledged wallet with the spend key. 
 
-Monero wallet supports a cold-wallet scenario where the transaction is prepared in the watch-only wallet, so called \emph{unsigned transaction}, and the signature is performed in the cold-wallet. Trezor integration make use of this functionality to do the signature. In order to decouple Trezor specific code from the official Monero codebase there is another software module added, Trezor software client facilitating the communication and the protocol itself. The client can be later integrated to the Monero codebase or run standalone and communicate over a socket.
+Monero wallet supports a so-called \emph{cold signing}, i.e., a transaction is prepared in the watch-only wallet, so called \emph{unsigned transaction}, and the signature is performed in the cold-wallet (offline machine). 
+%
+Trezor integration make use of this functionality to do the signature. In order to decouple Trezor specific code from the official Monero codebase there is another software module added, Trezor software client facilitating the communication and the protocol itself. The client can be later integrated to the Monero codebase or run standalone and communicate over a socket.
 
 \begin{figure}[H]
 	\centering
@@ -1257,7 +1259,10 @@ typedef std::vector<transfer_details> transfer_container;
 
 // Data for signing one transaction
 struct tx_construction_data {
+  // All transaction inputs to use (UTXOs).
   std::vector<cryptonote::tx_source_entry> sources;
+  
+  // Transaction output corresponding to the change
   cryptonote::tx_destination_entry change_dts;
   
   // split, includes change
@@ -1602,16 +1607,23 @@ struct rctSig: public rctSigBase {
 
 struct tx_source_entry
 {
+  // blockchain index of the UTXO, key, Commitment
   typedef std::pair<uint64_t, rct::ctkey> output_entry;
 
-  std::vector<output_entry> outputs;  //index + key + optional ringct commitment
-  size_t real_output;                 //index in outputs vector of real output_entry
+  // index + key + optional ringct commitment
+  std::vector<output_entry> outputs;  
+  
+  // index in outputs vector of real output_entry (\pi)
+  size_t real_output;                 
+  
   crypto::public_key real_out_tx_key; //incoming real tx public key
-  std::vector<crypto::public_key> real_out_additional_tx_keys; //incoming real tx additional public keys
-  size_t real_output_in_tx_index;     //index in transaction outputs vector
-  uint64_t amount;                    //money
+  
+  // incoming real tx additional public keys
+  std::vector<crypto::public_key> real_out_additional_tx_keys; 
+  size_t real_output_in_tx_index;     //index in transaction.outputs[] vector
+  uint64_t amount;                    //received amount
   bool rct;                           //true if the output is rct
-  rct::key mask;                      //ringct amount mask
+  rct::key mask;                      //range proof amount mask
   rct::multisig_kLRki multisig_kLRki; //multisig info
 }
 
