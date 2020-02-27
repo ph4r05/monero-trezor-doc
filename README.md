@@ -8,19 +8,22 @@ https://www.overleaf.com/read/bjxshqkrngcy
 # Donations
 Thanks for your support!
 
-47BEukN83whUdvuXbaWmDDQLYNUpLsvFR2jioQtpP5vD8b3o74b9oFgQ3KFa3ibjbwBsaJEehogjiUCfGtugUGAuJAfbh1Z
+Monero address:
+`47BEukN83whUdvuXbaWmDDQLYNUpLsvFR2jioQtpP5vD8b3o74b9oFgQ3KFa3ibjbwBsaJEehogjiUCfGtugUGAuJAfbh1Z`
 
 # Related projects
 
-- [monero-agent]
-- [monero-serialize]
-- [trezor-crypto]
-- [py-trezor-crypto]
-- [py-cryptonight]
-- [trezor-core]
-- [trezor-crypto]
-- [trezor-common]
+- [monero-agent] - Monero python tools, transaction signing algorithm PoC
+- [monero-serialize] - Monero serialization library
+- [py-trezor-crypto] - Python binding for Trezor Crypto
+- [py-cryptonight] - Python binding for Cryptonight hash function
+- [trezor-firmware]
+  - Deprecated repositories:
+  - [trezor-core]
+  - [trezor-crypto] - Trezor crypto library, low-level crypto functions
+  - [trezor-common]
 
+[trezor-firmware]: https://github.com/ph4r05/trezor-firmware
 [trezor-core]: https://github.com/ph4r05/trezor-core
 [trezor-crypto]: https://github.com/ph4r05/trezor-crypto
 [trezor-common]: https://github.com/ph4r05/trezor-common
