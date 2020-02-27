@@ -17,11 +17,11 @@ Monero address:
 - [monero-serialize] - Monero serialization library
 - [py-trezor-crypto] - Python binding for Trezor Crypto
 - [py-cryptonight] - Python binding for Cryptonight hash function
-- [trezor-firmware]
+- [trezor-firmware] - Trezor firmware monorepository, contains whole firmware, with Monero integration
   - Deprecated repositories:
-  - [trezor-core]
-  - [trezor-crypto] - Trezor crypto library, low-level crypto functions
-  - [trezor-common]
+  - [trezor-core] - Deprecated Trezor core repo (now included in monorepo)
+  - [trezor-crypto] - Trezor crypto library, low-level crypto functionsi (now included in monorepo)
+  - [trezor-common] - Deprecated Trezor common repo with protobuf messages and common artifacts (now included in monorepo)
 
 [trezor-firmware]: https://github.com/ph4r05/trezor-firmware
 [trezor-core]: https://github.com/ph4r05/trezor-core
