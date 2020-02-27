@@ -8,19 +8,22 @@ https://www.overleaf.com/read/bjxshqkrngcy
 # Donations
 Thanks for your support!
 
-47BEukN83whUdvuXbaWmDDQLYNUpLsvFR2jioQtpP5vD8b3o74b9oFgQ3KFa3ibjbwBsaJEehogjiUCfGtugUGAuJAfbh1Z
+Monero address:
+`47BEukN83whUdvuXbaWmDDQLYNUpLsvFR2jioQtpP5vD8b3o74b9oFgQ3KFa3ibjbwBsaJEehogjiUCfGtugUGAuJAfbh1Z`
 
 # Related projects
 
-- [monero-agent]
-- [monero-serialize]
-- [trezor-crypto]
-- [py-trezor-crypto]
-- [py-cryptonight]
-- [trezor-core]
-- [trezor-crypto]
-- [trezor-common]
+- [monero-agent] - Monero python tools, transaction signing algorithm PoC
+- [monero-serialize] - Monero serialization library
+- [py-trezor-crypto] - Python binding for Trezor Crypto
+- [py-cryptonight] - Python binding for Cryptonight hash function
+- [trezor-firmware] - Trezor firmware monorepository, contains whole firmware, with Monero integration
+  - Deprecated repositories:
+  - [trezor-core] - Deprecated Trezor core repo (now included in monorepo)
+  - [trezor-crypto] - Trezor crypto library, low-level crypto functionsi (now included in monorepo)
+  - [trezor-common] - Deprecated Trezor common repo with protobuf messages and common artifacts (now included in monorepo)
 
+[trezor-firmware]: https://github.com/ph4r05/trezor-firmware
 [trezor-core]: https://github.com/ph4r05/trezor-core
 [trezor-crypto]: https://github.com/ph4r05/trezor-crypto
 [trezor-common]: https://github.com/ph4r05/trezor-common
