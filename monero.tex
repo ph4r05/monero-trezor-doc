@@ -321,7 +321,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item Load the transaction information $(P_i, C_i)$, public key (address) and the amount commitment, from the full-node RPC server for the real and fake outputs going to spend.
 	\item For each input transaction $T_{in}$ and each UTXO to spend $T_{in,i}$:
 	\begin{enumerate}
-		\item Compute a derivation $\mathcal{D}_{in,i} = aR_{in}$
+		\item Compute a derivation $\mathcal{D}_{in,i} = 8aR_{in}$
 		\item Compute an ephemeral tsx spend key $(x_{in,i}, P_{in,i})$, \\where $x_{in,i} = H_s(\mathcal{D}_{in,i} \; || \; \text{varint}(i)) + b$, where $i$ is the index of the UTXO in the transaction $T_{in}$
 		\item Compute a key image $I_{in,i} = x_{in,i}H_p(P_{in,i})$
 	\end{enumerate}
@@ -397,7 +397,10 @@ Once the algorithm picks a correct transaction to send the user has to confirm a
 \subsubsection{High-level protocol description} 
 All signatures are performed in the Trezor on the set of spending transaction outputs (TXO) in one step. Output range proofs are offloaded to the host as explained below.
 
-Let $H$ be a cryptographic hash function $H : \{0,1\}^* \rightarrow \{0,1\}^{256}$, preferably Keccak-256 which is already used in the Monero. Let \emph{KDF} be the key derivation function which will be used to derive further HMAC and encrypton keys. The \emph{KDF} has 32 B output. In this paper it is assumed to be $H^2(x)$ which is equivalent to $H(H(x))$. HMAC uses the hash function $H$. Binary operator $||$ is a binary concatenation.
+Let $H$ be a cryptographic hash function $H : \{0,1\}^* \rightarrow \{0,1\}^{256}$, preferably Keccak-256 which is already used in the Monero. Let \emph{KDF} be the key derivation function which will be used to derive further HMAC and encrypton keys. The \emph{KDF} has 32 B output. In this paper it is assumed to be $H^2(x)$ which is equivalent to $H(H(x))$. HMAC uses the hash function $H$. Binary operator $||$ is a binary concatenation. 
+
+The more detailed transaction construction can be found in our full paper \cite{full_paper} (complete equations, handles subaddresses).
+
 
 \paragraph{State:}
 Trezor holds a transaction state:
@@ -756,6 +759,8 @@ Computing $t_1, t_2$ as inner products of $l_0, l_1, r_0, r_1$ is implemented in
 
 Offloading protocol computes the BP prefix $(V, A, S, T1, T2, \tau_x, \mu)$ and returns to the host: BP prefix, $x, y, z$. The host can recompute $l_0, l_1, r_0, r_1$ and finish the BP.
 
+\paragraph{Secure multi-party implementation} In the \cite{full_paper} we designed MPC version of the Bulletproof which computes the Bulletproof with help of the Host without leaking input masks to the host. The MPC version runs in constant memory, thus we can compute BP of arbitrary size.
+
 \paragraph{Implementation optimizations}
 The current Python implementation uses several optimizations to reduce the memory usage and allow several CPU/RAM tradeoffs:
 \begin{itemize}
@@ -847,10 +852,11 @@ On the other hand, Strauss and Pippenger optimization have large RAM overhead an
 \begin{itemize}
 	\item \url{https://medium.com/interstellar/bulletproofs-pre-release-fcb1feb36d4b}
 	\item \citetitle{cryptoeprint:2017:1066} \url{https://eprint.iacr.org/2017/1066.pdf}
+	\item Full paper on the current Bulletproof \cite{full_paper} implementation and its MPC version.
 \end{itemize}
 \section{Transaction signing protocol}
 
-The description of the subdivided transaction signing protocol follows.
+The description of the subdivided transaction signing protocol follows. The reference implementation is: \url{https://github.com/trezor/trezor-firmware/tree/master/core/src/apps/monero/signing}. See also \cite{full_paper} for more detailed protocol description.
 
 \subsection{Subdivided protocol overview}
 
@@ -864,7 +870,7 @@ The description of the subdivided transaction signing protocol follows.
 The subdivided protocol description follows:
 
 \begin{enumerate}
-	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin, fee, account\_id, minor\_indices, rsig\_data with rsig\_type and rsig\_grouping, integrated\_indices).
+	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin, fee, account\_id, rsig\_data with rsig\_type and rsig\_grouping, integrated\_indices, hard\_fork, monero\_client\_version).
 	\begin{enumerate}
 		\item Generate transaction master key $k_{mst} =  \textit{KDF}(TsxData \; || \; r \; || \; \text{rand\_nonce})$.
 		
@@ -874,13 +880,13 @@ The subdivided protocol description follows:
 
 		\item Generate HMAC for each output HMAC($\text{output}_i$) with the HMAC key: $\textit{KDF}(k_{hmac} \; || \; \text{"txdest"} \; || \; i)$ - the output pinning.
 		
-		\item Precompute sub-addresses. Construction data returned from watch-only wallet contain account ID (major sub-address index) and list of minor sub-addresses indices used in the transaction. Trezor precomputes sub-address spend keys.
-		
 		\item Return output HMACs.
 	\end{enumerate} 
 
 	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|.\\
-	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{pubs}, \dots)_i$
+	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{sub\_addr\_minor}, \text{pubs}, \text{additional\_keys} \dots)_i$.
+	\\\\%
+	In the newest client protocol versions sub address index is sent together with the UTXO thus we can recompute the keys without need to precompute subaddresses as Monero wallet does. 
 	\begin{enumerate}
 		\item Trezor computes $x_{in}, \mathcal{D}_{in}, I_{in}$. The $x_{in}$ is offloaded to the host in an encrypted form.
 		
@@ -892,14 +898,16 @@ The subdivided protocol description follows:
 		
 		\item Return $tx.vin_i$ part, HMAC($T_{in,i} \; || \; tx.vin_i$). If RCTSimple also return: $\text{pseudo\_out}_{in}$, HMAC($\text{pseudo\_out}_{in}$), Chacha20Poly1305($\alpha_{in}$)
 	\end{enumerate} 
-
-	\item $H \rightarrow T$: Set inputs permutation, inputs sorted by the key image. Permutation is represented as a simple integer array.
 	
-	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|, with corresponding $tx.vin_i$ part and HMAC. Trezor verifies the HMAC and incrementally hashes $tx.vin_i$ to the \emph{transaction\_prefix\_hash}. Trezor also hashes $\text{pseudo\_out}_{in}$ to the RctSigBase.
+	\item $H \rightarrow T$: Host sorts input according to key images in descending order.\\\\
+	%
+	Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|, with corresponding $tx.vin_i$ part and HMAC and original sorting index (prior key image sort). Trezor verifies the HMAC (using original sort index as it enters HMAC key derivation), checks descending ordering on the key images and incrementally hashes $tx.vin_i$ to the \emph{transaction\_prefix\_hash}. Trezor also hashes $\text{pseudo\_out}_{in}$ to the RctSigBase.
 	
-	\item $H \rightarrow T$: All inputs set: Finalizes phase of setting inputs. Generates all output commitment masks. If Bulletproof offloading is enabled (number of outputs $\ge 2$) the response contains commitment masks so host can generate the range proof.
+	\item $H \rightarrow T$: All inputs set: Finalizes phase of setting the inputs.
 	
-	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one, as \verb|tx_destination_entry|, together with corresponding HMAC generated in the init step. $T_{out,i} = ((A_d, B_d), \text{amount}, \dots)_i$. Change output $T_{chx}$ is the last transaction output if $T_{chx} \neq \perp$.
+	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one, as \verb|tx_destination_entry|, together with corresponding HMAC generated in the init step. $T_{out,i} = ((A_d, B_d), \text{amount}, \dots)_i$. Change output $T_{chx}$ is the last transaction output if $T_{chx} \neq \perp$. \\\\
+	%
+	If range proof is being offloaded, after all outputs from the output batch has been sent, another extra message of this type is sent from the host (is\_offloaded\_bp=True) which contains the generated range proof. As the output masks are deterministic and generated after the output has been processed, one extra message is needed.
 	\begin{enumerate}			
 		\item Generate the key derivation $\mathcal{D}_{out}$, i.e., the \emph{amount key}.
 		
@@ -910,7 +918,7 @@ The subdivided protocol description follows:
         \item Compute the transaction prefix fields $tx.vout_i$ and $tx.extra_i$.
         
         \item Compute range proof on the output amount. \\
-        - Use commitment masks $a_i$ generated in step 5. \\
+        - Compute commitment masks $a_i$. \\
         - If the range proof is offloaded, check the range proof sent by host. If is generated on the device then compute $C, rsig = \text{prove\_range}(a_i, amount_i)$, where $C$ is a Pedersen commitment on the output value: $C = a_i G + amount_i H$. \\
         - Hash the range proof incrementally to the \emph{final\_message}.\\
         - Compute $\text{out\_pk}_i = \text{CtKey}(\text{dest}=tx.vout_i.output,\text{mask}=C)$.\\  
@@ -921,15 +929,13 @@ The subdivided protocol description follows:
                 
         \item Store $tx.extra_i$, $\text{out\_pk}_i$ to the transaction state.
         
-		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$, $rsig_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ and corresponding HMACs.
+		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$, $rsig_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ and corresponding HMACs. Return also $a_i$ commitment mask if range proof is offloaded.
 		
 	\end{enumerate}
 	  
 	\item $H \rightarrow T$: All outputs set: The transaction prefix hash is computed and stored to the state. 
 	
 	\begin{enumerate}
-		\item Check that sum of masks from the pseudo-outputs and output commitments are equal $\sum \alpha = \sum a_{i,j}$.
-		
 		\item Finalize incremental hashing of transaction prefix: hash $\text{out\_pk}_i$ from state. 
 		
 		\item Finalize incremental hashing of the full message hash (pre-MLSAG hash).
@@ -937,11 +943,17 @@ The subdivided protocol description follows:
 		\item Return transaction prefix hash, tx.extra, initial \emph{RctSig} structure, \emph{full\_message\_hash}
 	\end{enumerate} 
 	
-	\item $H \rightarrow T$: RingCT Sign $T_{in}$. Send all transaction inputs $T_{in}$, one by one, with hmacs, pseudo output, alpha.
+	\item $H \rightarrow T$: RingCT Sign $T_{in}$. Send all transaction inputs $T_{in}$, one by one, with hmacs, pseudo output, alpha (encrypted), spending key (encrypted), original sorting index (prior key image sort).
 	\begin{enumerate}
-		\item Check the HMAC
+		\item Check the HMAC, Key image ordering.
+		
+		\item If the input is the last, recompute pseudo outputs so commitment masks are equal $\sum \alpha = \sum a_{i}$.
 		
 		\item Compute RingCT MG signature $S_i$ on the input and the \emph{final\_message}.
+		
+		\item In the client version 3+, the MLSAG / CLSAG signature is returned encrypted with Chacha20Poly1305 under key derived from the opening key. The opening key is returned in the following step if protocol finishes successfully.
+		
+		\item Return signature and recomputed pseudo output. 
 		
 	\end{enumerate} 
 
@@ -977,13 +989,13 @@ In the Figure \ref{fig:detailed_state} there is a hidden failed state. In case o
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.6\textwidth,,trim={0 24cm 0 1cm},clip, angle=0]{img/tsx_state.pdf}
+	\includegraphics[width=1.\textwidth,,trim={0 24cm 0 1cm},clip, angle=0, scale=0.7]{img/tsx_state.pdf}
 	\caption{Simplified transaction state for incremental signing}
 \end{figure}
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=1.\textwidth,trim={0 24cm 0 1cm},clip, angle=0]{img/tsx_state_detail.pdf}
+	\includegraphics[width=1.\textwidth,trim={0 23cm 0 1cm},clip, angle=0, scale=0.7]{img/tsx_state_detail.pdf}
 	\caption{Detailed transaction state for incremental signing} \label{fig:detailed_state}
 \end{figure}
 
