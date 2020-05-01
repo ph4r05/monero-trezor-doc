@@ -5,6 +5,9 @@ This repository contains proposal of the monero integration to the Trezor.
 Read-only overleaf link:
 https://www.overleaf.com/read/bjxshqkrngcy
 
+Read also our full paper on Monero transaction signing and secure multi-party computation of Bulletproofs:
+Privacy-friendly Monero transaction signing on a hardware wallet, extended version: https://ia.cr/2020/281
+
 # Donations
 Thanks for your support!
 
