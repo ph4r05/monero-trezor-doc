@@ -1,7 +1,7 @@
 \documentclass[]{article}
 \usepackage[T1]{fontenc}
 \usepackage[margin=3cm]{geometry}
-\usepackage{cite}
+\usepackage[backend=biber,style=alphabetic,sorting=ynt]{biblatex}
 \usepackage{url}
 \usepackage[breaklinks=true]{hyperref}
 \usepackage{float}
@@ -21,7 +21,7 @@
 
 \newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor}
 \newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
-
+\addbibresource{monero.bib}
 
 % TODO packages
 % https://tex.stackexchange.com/questions/9796/how-to-add-todo-notes
@@ -33,6 +33,12 @@
 \newcommandx{\info}[2][1=]{\todo[linecolor=OliveGreen,backgroundcolor=OliveGreen!25,bordercolor=OliveGreen,#1]{#2}}
 \newcommandx{\improvement}[2][1=]{\todo[linecolor=Plum,backgroundcolor=Plum!25,bordercolor=Plum,#1]{#2}}
 \newcommandx{\thiswillnotshow}[2][1=]{\todo[disable,#1]{#2}}
+
+\usepackage{tikz}  % has to be loaded after xcolor and todonotes
+\usetikzlibrary{calc}
+
+\usepackage{pgf-umlsd}
+\usepgflibrary{arrows} % for pgf-umlsd
 
 \lstdefinestyle{cstyle}{
 	numbers=none,
@@ -51,7 +57,7 @@
 }
 
 %opening
-\title{Monero wallet Trezor integration draft v0.4.1}
+\title{Monero wallet Trezor integration draft v0.4.3}
 \author{Du\v{s}an Klinec \\{dusan.klinec@gmail.com}}
 
 
@@ -315,7 +321,7 @@ Overall, the sending process goes like this (description inspired by Ledger prop
 	\item Load the transaction information $(P_i, C_i)$, public key (address) and the amount commitment, from the full-node RPC server for the real and fake outputs going to spend.
 	\item For each input transaction $T_{in}$ and each UTXO to spend $T_{in,i}$:
 	\begin{enumerate}
-		\item Compute a derivation $\mathcal{D}_{in,i} = aR_{in}$
+		\item Compute a derivation $\mathcal{D}_{in,i} = 8aR_{in}$
 		\item Compute an ephemeral tsx spend key $(x_{in,i}, P_{in,i})$, \\where $x_{in,i} = H_s(\mathcal{D}_{in,i} \; || \; \text{varint}(i)) + b$, where $i$ is the index of the UTXO in the transaction $T_{in}$
 		\item Compute a key image $I_{in,i} = x_{in,i}H_p(P_{in,i})$
 	\end{enumerate}
@@ -391,7 +397,10 @@ Once the algorithm picks a correct transaction to send the user has to confirm a
 \subsubsection{High-level protocol description} 
 All signatures are performed in the Trezor on the set of spending transaction outputs (TXO) in one step. Output range proofs are offloaded to the host as explained below.
 
-Let $H$ be a cryptographic hash function $H : \{0,1\}^* \rightarrow \{0,1\}^{256}$, preferably Keccak-256 which is already used in the Monero. Let \emph{KDF} be the key derivation function which will be used to derive further HMAC and encrypton keys. The \emph{KDF} has 32 B output. In this paper it is assumed to be $H^2(x)$ which is equivalent to $H(H(x))$. HMAC uses the hash function $H$. Binary operator $||$ is a binary concatenation.
+Let $H$ be a cryptographic hash function $H : \{0,1\}^* \rightarrow \{0,1\}^{256}$, preferably Keccak-256 which is already used in the Monero. Let \emph{KDF} be the key derivation function which will be used to derive further HMAC and encrypton keys. The \emph{KDF} has 32 B output. In this paper it is assumed to be $H^2(x)$ which is equivalent to $H(H(x))$. HMAC uses the hash function $H$. Binary operator $||$ is a binary concatenation. 
+
+The more detailed transaction construction can be found in our full paper \cite{full_paper} (complete equations, handles subaddresses).
+
 
 \paragraph{State:}
 Trezor holds a transaction state:
@@ -637,6 +646,16 @@ The range proof consists of Borromean signature and an array of 32~B commitments
 \subsection{Bulletproof}\label{sec:bp} The offloading mechanism is very similar to the Borromean range proof. The random mask and the amount commitments \verb|V| are computed in the Trezor to make sure it was not tampered with (simple computation step with amount and mask). 
 By switching to Bulletproof the range proof size for 2 outputs is reduced roughly from 12~352~B to 2~500~B as Bulletproof signs all outputs with a single signature. The offloading is not required with Bulletproof if each output transaction has own Bulletproof \cite{Bnz2017BulletproofsSP}. However, if batched bulletproof are used the memory requirements for the computations increase so it cannot be computed on the device anymore. 
 
+\paragraph{Deterministic masks}
+Since Hardfork 10 deterministic masks were introduced in Monero, as defined in equation \ref{eq:det_mask_hf10}. 
+
+\begin{equation}
+\begin{split} \label{eq:det_mask_hf10}
+  \text{amount\_key}_i &= H_s(\text{derivation} || i)\\
+  \text{mask}_i &= H(\text{"commitment\_mask"} || \text{amount\_key}_i)\\
+\end{split}
+\end{equation}
+
 \paragraph{Batched Bulletproof} 
 In the new Monero fork the batched Bulletproofs are implemented. Batched Bulletproofs are ZK proofs about multiple statements in a single proof. The proof size increase is logarithmic in the number of statements and statement sizes. Statement is a range proof about the transaction output value. Batching can cover the whole transaction with one BP. Note the BP can prove $2^x$ statements so if transaction has 5 statements the BP proof is of equal size as for 8 statements.
 
@@ -651,7 +670,7 @@ Here follows Bulletproof transaction types:
 	\item {\it RangeProofBulletproof}: One BP per transaction output. In the current version it is used only for transactions with one output which is technically the same as {\it RangeProofPaddedBulletproof}.
 \end{itemize}
 
-\paragraph{Offloading} As the batched version allocates several 32~B key vectors of size $M\cdot N  = numOutputs \cdot 64$ the computation in the constrained environment is problematic for transaction with 2 and more outputs so offloading is necessary. Note the output value mask commitment $a_i$ is denoted \verb|$gamma_i$|.
+\paragraph{Offloading} As the batched version allocates several 32~B key vectors of size $M\cdot N  = numOutputs \cdot 64$ the computation in the constrained environment is problematic for transaction with 2 and more outputs so offloading is necessary. Note the output value mask commitment $a_i$ is denoted \verb|gamma_i|.
 
 The BP has the following structure:
 \begin{itemize}
@@ -740,6 +759,8 @@ Computing $t_1, t_2$ as inner products of $l_0, l_1, r_0, r_1$ is implemented in
 
 Offloading protocol computes the BP prefix $(V, A, S, T1, T2, \tau_x, \mu)$ and returns to the host: BP prefix, $x, y, z$. The host can recompute $l_0, l_1, r_0, r_1$ and finish the BP.
 
+\paragraph{Secure multi-party implementation} In the \cite{full_paper} we designed MPC version of the Bulletproof which computes the Bulletproof with help of the Host without leaking input masks to the host. The MPC version runs in constant memory, thus we can compute BP of arbitrary size.
+
 \paragraph{Implementation optimizations}
 The current Python implementation uses several optimizations to reduce the memory usage and allow several CPU/RAM tradeoffs:
 \begin{itemize}
@@ -827,9 +848,15 @@ Batched inversion and fast modular inversion can be ported to Trezor as the RAM 
 
 On the other hand, Strauss and Pippenger optimization have large RAM overhead and is not of practical use for Trezor. Optimization is effective fot the Monero deamon so the transaction verification is very fast and blockchain scanning / synchronization is reasonable fast. In the Trezor usecase the speedup is not that valuable given the CPU/RAM tradeoff limits.
 
+\paragraph{Bulletproof resources}
+\begin{itemize}
+	\item \url{https://medium.com/interstellar/bulletproofs-pre-release-fcb1feb36d4b}
+	\item \citetitle{cryptoeprint:2017:1066} \url{https://eprint.iacr.org/2017/1066.pdf}
+	\item Full paper on the current Bulletproof \cite{full_paper} implementation and its MPC version.
+\end{itemize}
 \section{Transaction signing protocol}
 
-The description of the subdivided transaction signing protocol follows.
+The description of the subdivided transaction signing protocol follows. The reference implementation is: \url{https://github.com/trezor/trezor-firmware/tree/master/core/src/apps/monero/signing}. See also \cite{full_paper} for more detailed protocol description.
 
 \subsection{Subdivided protocol overview}
 
@@ -843,7 +870,7 @@ The description of the subdivided transaction signing protocol follows.
 The subdivided protocol description follows:
 
 \begin{enumerate}
-	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin, fee, account\_id, minor\_indices, rsig\_data with rsig\_type and rsig\_grouping, integrated\_indices).
+	\item Initialize the new protocol run as in the original one-step protocol. Send TsxData(version, payment\_id, unlock\_time, outputs, change\_dest, num\_inputs, mixin, fee, account\_id, rsig\_data with rsig\_type and rsig\_grouping, integrated\_indices, hard\_fork, monero\_client\_version).
 	\begin{enumerate}
 		\item Generate transaction master key $k_{mst} =  \textit{KDF}(TsxData \; || \; r \; || \; \text{rand\_nonce})$.
 		
@@ -853,13 +880,13 @@ The subdivided protocol description follows:
 
 		\item Generate HMAC for each output HMAC($\text{output}_i$) with the HMAC key: $\textit{KDF}(k_{hmac} \; || \; \text{"txdest"} \; || \; i)$ - the output pinning.
 		
-		\item Precompute sub-addresses. Construction data returned from watch-only wallet contain account ID (major sub-address index) and list of minor sub-addresses indices used in the transaction. Trezor precomputes sub-address spend keys.
-		
 		\item Return output HMACs.
 	\end{enumerate} 
 
 	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|.\\
-	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{pubs}, \dots)_i$
+	$T_{in,i} = ((\text{idx}, P_j,C_j)_j, \text{amount}, \text{mask}, \pi, \text{sub\_addr\_minor}, \text{pubs}, \text{additional\_keys} \dots)_i$.
+	\\\\%
+	In the newest client protocol versions sub address index is sent together with the UTXO thus we can recompute the keys without need to precompute subaddresses as Monero wallet does. 
 	\begin{enumerate}
 		\item Trezor computes $x_{in}, \mathcal{D}_{in}, I_{in}$. The $x_{in}$ is offloaded to the host in an encrypted form.
 		
@@ -871,14 +898,16 @@ The subdivided protocol description follows:
 		
 		\item Return $tx.vin_i$ part, HMAC($T_{in,i} \; || \; tx.vin_i$). If RCTSimple also return: $\text{pseudo\_out}_{in}$, HMAC($\text{pseudo\_out}_{in}$), Chacha20Poly1305($\alpha_{in}$)
 	\end{enumerate} 
-
-	\item $H \rightarrow T$: Set inputs permutation, inputs sorted by the key image. Permutation is represented as a simple integer array.
 	
-	\item $H \rightarrow T$: Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|, with corresponding $tx.vin_i$ part and HMAC. Trezor verifies the HMAC and incrementally hashes $tx.vin_i$ to the \emph{transaction\_prefix\_hash}. Trezor also hashes $\text{pseudo\_out}_{in}$ to the RctSigBase.
+	\item $H \rightarrow T$: Host sorts input according to key images in descending order.\\\\
+	%
+	Send all transaction inputs $T_{in}$, one by one, as \verb|tx_source_entry|, with corresponding $tx.vin_i$ part and HMAC and original sorting index (prior key image sort). Trezor verifies the HMAC (using original sort index as it enters HMAC key derivation), checks descending ordering on the key images and incrementally hashes $tx.vin_i$ to the \emph{transaction\_prefix\_hash}. Trezor also hashes $\text{pseudo\_out}_{in}$ to the RctSigBase.
 	
-	\item $H \rightarrow T$: All inputs set: Finalizes phase of setting inputs. Generates all output commitment masks. If Bulletproof offloading is enabled (number of outputs $\ge 2$) the response contains commitment masks so host can generate the range proof.
+	\item $H \rightarrow T$: All inputs set: Finalizes phase of setting the inputs.
 	
-	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one, as \verb|tx_destination_entry|, together with corresponding HMAC generated in the init step. $T_{out,i} = ((A_d, B_d), \text{amount}, \dots)_i$. Change output $T_{chx}$ is the last transaction output if $T_{chx} \neq \perp$.
+	\item $H \rightarrow T$: Send all transaction outputs $T_{out}$, one by one, as \verb|tx_destination_entry|, together with corresponding HMAC generated in the init step. $T_{out,i} = ((A_d, B_d), \text{amount}, \dots)_i$. Change output $T_{chx}$ is the last transaction output if $T_{chx} \neq \perp$. \\\\
+	%
+	If range proof is being offloaded, after all outputs from the output batch has been sent, another extra message of this type is sent from the host (is\_offloaded\_bp=True) which contains the generated range proof. As the output masks are deterministic and generated after the output has been processed, one extra message is needed.
 	\begin{enumerate}			
 		\item Generate the key derivation $\mathcal{D}_{out}$, i.e., the \emph{amount key}.
 		
@@ -889,7 +918,7 @@ The subdivided protocol description follows:
         \item Compute the transaction prefix fields $tx.vout_i$ and $tx.extra_i$.
         
         \item Compute range proof on the output amount. \\
-        - Use commitment masks $a_i$ generated in step 5. \\
+        - Compute commitment masks $a_i$. \\
         - If the range proof is offloaded, check the range proof sent by host. If is generated on the device then compute $C, rsig = \text{prove\_range}(a_i, amount_i)$, where $C$ is a Pedersen commitment on the output value: $C = a_i G + amount_i H$. \\
         - Hash the range proof incrementally to the \emph{final\_message}.\\
         - Compute $\text{out\_pk}_i = \text{CtKey}(\text{dest}=tx.vout_i.output,\text{mask}=C)$.\\  
@@ -900,15 +929,13 @@ The subdivided protocol description follows:
                 
         \item Store $tx.extra_i$, $\text{out\_pk}_i$ to the transaction state.
         
-		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$, $rsig_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ and corresponding HMACs.
+		\item Return the transaction prefix fields $tx.vout_i$ and $tx.extra_i$, $rsig_i$, $\text{out\_pk}_i$, $\text{ecdh\_info}_i$ and corresponding HMACs. Return also $a_i$ commitment mask if range proof is offloaded.
 		
 	\end{enumerate}
 	  
 	\item $H \rightarrow T$: All outputs set: The transaction prefix hash is computed and stored to the state. 
 	
 	\begin{enumerate}
-		\item Check that sum of masks from the pseudo-outputs and output commitments are equal $\sum \alpha = \sum a_{i,j}$.
-		
 		\item Finalize incremental hashing of transaction prefix: hash $\text{out\_pk}_i$ from state. 
 		
 		\item Finalize incremental hashing of the full message hash (pre-MLSAG hash).
@@ -916,11 +943,17 @@ The subdivided protocol description follows:
 		\item Return transaction prefix hash, tx.extra, initial \emph{RctSig} structure, \emph{full\_message\_hash}
 	\end{enumerate} 
 	
-	\item $H \rightarrow T$: RingCT Sign $T_{in}$. Send all transaction inputs $T_{in}$, one by one, with hmacs, pseudo output, alpha.
+	\item $H \rightarrow T$: RingCT Sign $T_{in}$. Send all transaction inputs $T_{in}$, one by one, with hmacs, pseudo output, alpha (encrypted), spending key (encrypted), original sorting index (prior key image sort).
 	\begin{enumerate}
-		\item Check the HMAC
+		\item Check the HMAC, Key image ordering.
+		
+		\item If the input is the last, recompute pseudo outputs so commitment masks are equal $\sum \alpha = \sum a_{i}$.
 		
 		\item Compute RingCT MG signature $S_i$ on the input and the \emph{final\_message}.
+		
+		\item In the client version 3+, the MLSAG / CLSAG signature is returned encrypted with Chacha20Poly1305 under key derived from the opening key. The opening key is returned in the following step if protocol finishes successfully.
+		
+		\item Return signature and recomputed pseudo output. 
 		
 	\end{enumerate} 
 
@@ -956,13 +989,13 @@ In the Figure \ref{fig:detailed_state} there is a hidden failed state. In case o
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.6\textwidth,,trim={0 24cm 0 1cm},clip, angle=0]{img/tsx_state.pdf}
+	\includegraphics[width=1.\textwidth,,trim={0 24cm 0 1cm},clip, angle=0, scale=0.7]{img/tsx_state.pdf}
 	\caption{Simplified transaction state for incremental signing}
 \end{figure}
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=1.\textwidth,trim={0 24cm 0 1cm},clip, angle=0]{img/tsx_state_detail.pdf}
+	\includegraphics[width=1.\textwidth,trim={0 23cm 0 1cm},clip, angle=0, scale=0.7]{img/tsx_state_detail.pdf}
 	\caption{Detailed transaction state for incremental signing} \label{fig:detailed_state}
 \end{figure}
 
@@ -1116,6 +1149,83 @@ message MoneroRsigData {
 	\caption{State machine for incremental signing with range sig offloading} \label{fig:detailed_state}
 \end{figure}
 
+\subsection{Hardfork 10+ upgrade}\label{sec:hf10}
+Due to introduction of deterministic masks as defined in the equation \ref{eq:det_mask_hf10} in the hardfork 10, the protocol had to be changed.
+
+\paragraph{Dummy payment ID}
+In order to make all transactions look the same on the blockchain, all transactions now contain payment ID. If the payment ID was not entered by the user, a dummy null payment ID \verb|0x0000000000000000| is encrypted and added to a transaction.
+Long (unencrypted) payment ID is now deprecated.
+
+
+\paragraph{Mask Balancing.}
+The main reason for the protocol change is that the following equation has to hold: $\sum \text{input\_mask}_i = \sum \text{output\_mask}_j$.
+Previously, the mask balancing was done on output masks after all UTXO has been set by the host, i.e., the last output mask was adjusted so the aforementioned equation holds. However, the deterministic output masks caused the balancing has to be done on the input masks.
+
+Now the balancing can be performed after all output masks have been computed, i.e., after all outputs have been computed.
+
+\begin{equation}
+\begin{split} \label{eq:det_mask_hf10_ex}
+\text{amount\_key}_i &= H_s(\text{derivation} || i)\\
+\text{mask}_i &= H(\text{"commitment\_mask"} || \text{amount\_key}_i)\\
+\text{amount\_xor}_i &= H(\text{"amount"} || \text{amount\_key}_i)\\
+\text{amount\_enc}_i &= \text{amount}_i \oplus \text{amount\_xor}_i \;\;\; \textit{(8 Bytes)}\\
+\end{split}
+\end{equation}
+
+\paragraph{ECDH serialization.} The deterministic masks are not needed to be stored in the ECDH info on the blockchain. 
+Thus the ECDH info is serialized only as $\text{amount\_enc}_i$, i.e., 8 Bytes of encrypted amount.
+
+\paragraph{Pseudo output fix.}
+As the balancing is performed on the last input mask after the step 6, the last pseudo output (UTXO commitment) is changed. This change has to be sent to the host. Thus the signing step returns the updated pseudo output value so host can update the stored values and correctly assemble final transaction.
+
+\paragraph{BP Offloading.}
+Deterministic masks affect the BP offloading protocol. Previously, the balancing and thus all output masks has been computed in the step 5 "All inputs set". Now the mask is known only after the transaction destination processing in step 6 as it depends on the particular amount key. Thus step 5 now does not send masks for BP offloading.
+
+The protocol has been modified in the step 6 "Set output". 
+After the output has been processed, the mask is computed (equation \ref{eq:det_mask_hf10_ex}) is sent to the host. After the host has all masks to compute BP for the current batch, it send additional message to the Trezor as part of the step 6 with the flag \verb|is_offloaded_bp| set. The message carries computed BP for the current batch. Trezor checks the BP, hashes it to the pre-mlsag-hash and continues with the protocol.
+
+The example of the message flow for step 6 is depicted in figure \ref{fig:hf10_step6}.
+
+% https://cs.uwaterloo.ca/twiki/view/CrySP/LaTeXSnippets
+% http://ftp.cvut.cz/tex-archive/graphics/pgf/contrib/pgf-umlsd/pgf-umlsd-manual.pdf
+\begin{figure}[H]
+\centering
+\begin{sequencediagram}
+  \setlength{\unitlength}{1cm}%
+  \tikzstyle{sequence}=[coordinate]%
+  \tikzstyle{inststyle}=[rectangle, draw, anchor=west, minimum
+	height=0.8cm, minimum width=1.6cm, fill=white, 
+	drop shadow={opacity=1,fill=black}]%
+  \tikzstyle{blockstyle}=[anchor=north west]%
+  \tikzstyle{blockcommentstyle}=[anchor=north west, font=\small]%
+  \tikzstyle{dot}=[inner sep=0pt,fill=black,circle,minimum size=0.2pt]%
+	
+  \newthread{h}{Host}
+  %\newthread[gray]{t}{Trezor}
+  \newinst[4]{t}{Trezor}
+  
+  \begin{sdblock}{Step 6 - Set output}{}
+  
+  \begin{call}{h}{set\_output($o_0$)}{t}{$res_0$, $mask_0$}
+  \end{call}\postlevel
+
+  \begin{call}{h}{set\_output($o_1$)}{t}{$res_1$, $mask_1$}
+  \end{call}\postlevel
+
+  \begin{call}{h}{set\_output($o_2$)}{t}{$res_2$, $mask_2$}
+  \end{call}\postlevel
+
+  \begin{call}{h}{set\_output($o_3$)}{t}{$res_3$, $mask_3$}
+  \end{call}\postlevel
+
+  \begin{call}{h}{set\_bp($BP_0$)}{t}{OK}
+  \end{call}
+  \end{sdblock}
+
+\end{sequencediagram}
+\caption{Sequence diagram for HF10 Step6}\label{fig:hf10_step6}
+\end{figure}
+
 
 \section{Implementation}
 
@@ -1142,7 +1252,9 @@ The integration idea is to do minimal modifications to the official Monero codeb
 \paragraph{Watch-only wallet and Trezor client} 
 The wallet having only view key available is called watch-only wallet. It performs the blockchain scanning for the user, stores all UTXO, communicates with the full-node, assembles the transaction inputs for a new transfer but the signatures have to be done in the full-fledged wallet with the spend key. 
 
-Monero wallet supports a cold-wallet scenario where the transaction is prepared in the watch-only wallet, so called \emph{unsigned transaction}, and the signature is performed in the cold-wallet. Trezor integration make use of this functionality to do the signature. In order to decouple Trezor specific code from the official Monero codebase there is another software module added, Trezor software client facilitating the communication and the protocol itself. The client can be later integrated to the Monero codebase or run standalone and communicate over a socket.
+Monero wallet supports a so-called \emph{cold signing}, i.e., a transaction is prepared in the watch-only wallet, so called \emph{unsigned transaction}, and the signature is performed in the cold-wallet (offline machine). 
+%
+Trezor integration make use of this functionality to do the signature. In order to decouple Trezor specific code from the official Monero codebase there is another software module added, Trezor software client facilitating the communication and the protocol itself. The client can be later integrated to the Monero codebase or run standalone and communicate over a socket.
 
 \begin{figure}[H]
 	\centering
@@ -1159,7 +1271,10 @@ typedef std::vector<transfer_details> transfer_container;
 
 // Data for signing one transaction
 struct tx_construction_data {
+  // All transaction inputs to use (UTXOs).
   std::vector<cryptonote::tx_source_entry> sources;
+  
+  // Transaction output corresponding to the change
   cryptonote::tx_destination_entry change_dts;
   
   // split, includes change
@@ -1504,16 +1619,23 @@ struct rctSig: public rctSigBase {
 
 struct tx_source_entry
 {
+  // blockchain index of the UTXO, key, Commitment
   typedef std::pair<uint64_t, rct::ctkey> output_entry;
 
-  std::vector<output_entry> outputs;  //index + key + optional ringct commitment
-  size_t real_output;                 //index in outputs vector of real output_entry
+  // index + key + optional ringct commitment
+  std::vector<output_entry> outputs;  
+  
+  // index in outputs vector of real output_entry (\pi)
+  size_t real_output;                 
+  
   crypto::public_key real_out_tx_key; //incoming real tx public key
-  std::vector<crypto::public_key> real_out_additional_tx_keys; //incoming real tx additional public keys
-  size_t real_output_in_tx_index;     //index in transaction outputs vector
-  uint64_t amount;                    //money
+  
+  // incoming real tx additional public keys
+  std::vector<crypto::public_key> real_out_additional_tx_keys; 
+  size_t real_output_in_tx_index;     //index in transaction.outputs[] vector
+  uint64_t amount;                    //received amount
   bool rct;                           //true if the output is rct
-  rct::key mask;                      //ringct amount mask
+  rct::key mask;                      //range proof amount mask
   rct::multisig_kLRki multisig_kLRki; //multisig info
 }
 
@@ -1627,8 +1749,10 @@ struct multisig_tx_set {
 \end{lstlisting}
 
 % References
-\bibliography{monero}{}
-\bibliographystyle{plain}
-	
+%\renewcommand*{\bibfont}{\footnotesize}
+\printbibliography%[heading=bibintoc] 
+
+%\bibliography{monero}{}
+%\bibliographystyle{plain}	
 \end{document}
 
