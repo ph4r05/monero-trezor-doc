@@ -12,7 +12,9 @@ Privacy-friendly Monero transaction signing on a hardware wallet, extended versi
 Thanks for your support!
 
 Monero address:
-`47BEukN83whUdvuXbaWmDDQLYNUpLsvFR2jioQtpP5vD8b3o74b9oFgQ3KFa3ibjbwBsaJEehogjiUCfGtugUGAuJAfbh1Z`
+```
+86jZikjBJhV4XTqF1W1WPH1AyaZmmptbC8jV3XPPFVxiFL59c56UZhZWmwAnu2eVMfTwL3F5AYKcp8TVtaicQyo12MjeLHY
+```
 
 # Related projects
 
